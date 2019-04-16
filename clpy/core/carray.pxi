@@ -10,6 +10,7 @@ import warnings
 from clpy import backend
 from clpy.backend cimport function
 # from clpy.backend cimport runtime
+import clpy.backend.opencl.api
 cimport clpy.backend.opencl.api
 cimport clpy.backend.opencl.utility
 import clpy.backend.opencl.env
@@ -186,6 +187,9 @@ cpdef function.Module compile_with_cache(
     extra_source = _get_header_source()
     options += ('-I%s' % _get_header_dir_path(),)
     options += (' -cl-fp32-correctly-rounded-divide-sqrt', )
+    if clpy.backend.opencl.env.supports_cl_khr_fp16() == \
+            clpy.backend.opencl.api.TRUE:
+        options += (' -D__CLPY_ENABLE_CL_KHR_FP16', )
     optionStr = functools.reduce(operator.add, options)
 
     device = clpy.backend.opencl.env.get_device()
