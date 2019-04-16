@@ -12,7 +12,7 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-static half convert_float_to_half(float f) {
+static ushort convert_float_to_half_ushort(float f) {
   const float scale_to_inf = 0x1.0p+112f;
   const float scale_to_zero = 0x1.0p-110f;
   float base = (fabs(f) * scale_to_inf) * scale_to_zero;
@@ -32,5 +32,26 @@ static half convert_float_to_half(float f) {
   const uint mantissa_bits = bits & (uint)(0x00000FFF);
   const uint nonsign = exp_bits + mantissa_bits;
   const ushort ret = ((sign >> 16) | (shl1_w > (uint)(0xFF000000) ? (ushort)(0x7E00) : nonsign));
-  return *(const half*)&ret;
+  return ret;
+}
+
+static inline float convert_half_ushort_to_float(ushort h) {
+  const uint w = (uint) h << 16;
+  const uint sign = w & (uint)0x80000000;
+  const uint two_w = w + w;
+
+  const uint exp_offset = (uint)0xE0 << 23;
+  const float exp_scale = 0x1.0p-112f;
+  const uint normalized_value_ = (two_w >> 4) + exp_offset;
+  const float normalized_value = *(const float*)&normalized_value_ * exp_scale;
+
+  const uint magic_mask = (uint)(126u) << 23;
+  const float magic_bias = .5f;
+  const uint denormalized_value_ = (two_w >> 17) | magic_mask;
+  const float denormalized_value = *(const float*)&denormalized_value_ - magic_bias;
+
+  const uint denormalized_cutoff = (uint)1u << 27;
+  const uint result = sign |
+    *(const uint*)(two_w < denormalized_cutoff ? &denormalized_value : &normalized_value);
+  return *(const float*)&result;
 }

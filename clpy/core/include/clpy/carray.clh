@@ -530,54 +530,60 @@ static void __clpy_end_print_out() __attribute__((annotate("clpy_end_print_out")
 
 
 #ifdef __ULTIMA
-__attribute__((annotate("clpy_no_mangle"))) static half convert_float_to_half(float x);
-#else
-#include "fp16.clh"
-typedef half __clpy__half;
-#endif
+__attribute__((annotate("clpy_no_mangle"))) static ushort convert_float_to_half_ushort(float x);
+__attribute__((annotate("clpy_no_mangle"))) static float convert_half_ushort_to_float(ushort x);
 
-#ifdef __ULTIMA
-__attribute__((annotate("clpy_no_mangle"))) static half clpy_nextafter_fp16(half x1, half x2);
-#else
-static int isnan_fp16(half x){
-  unsigned short const* x_raw = (unsigned short const*)&x;
-  return (*x_raw & 0x7c00u) == 0x7c00u && (*x_raw & 0x03ffu) != 0x0000u;
+static void __clpy_begin_print_out() __attribute__((annotate("clpy_begin_print_out")));
+
+typedef struct __attribute__((packed)) __attribute__((aligned(2))) __clpy__half_{
+  ushort v;
+  __clpy__half_() = default;
+  __clpy__half_(float f):v{convert_float_to_half_ushort(f)}{}
+}__clpy__half;
+
+static int isnan_fp16(__clpy__half x){
+  return (x.v & 0x7c00u) == 0x7c00u && (x.v & 0x03ffu) != 0x0000u;
 }
-static int isfinite_fp16(half x){
-  unsigned short const* x_raw = (unsigned short const*)&x;
-  return (*x_raw & 0x7c00u) != 0x7c00u;
+static int isfinite_fp16(__clpy__half x){
+  return (x.v & 0x7c00u) != 0x7c00u;
 }
-static int iszero_fp16(half x){
-  unsigned short const* x_raw = (unsigned short const*)&x;
-  return (*x_raw & 0x7fffu) == 0;
+static int iszero_fp16(__clpy__half x){
+  return (x.v & 0x7fffu) == 0;
 }
-static int eq_nonan_fp16(half x1, half x2){
-  unsigned short const* x1_raw = (unsigned short const*)&x1;
-  unsigned short const* x2_raw = (unsigned short const*)&x2;
-  return (*x1_raw == *x2_raw || ((*x1_raw | *x2_raw) & 0x7fff) == 0);
+static int eq_nonan_fp16(__clpy__half x1, __clpy__half x2){
+  return (x1.v == x2.v || ((x1.v | x2.v) & 0x7fff) == 0);
 }
-static half clpy_nextafter_fp16(half x1, half x2){
-  unsigned short const* x1_raw = (unsigned short const*)&x1;
-  unsigned short const* x2_raw = (unsigned short const*)&x2;
+__attribute__((annotate("clpy_no_mangle"))) static __clpy__half clpy_nextafter_fp16(__clpy__half x1, __clpy__half x2){
   unsigned short ret_raw_;
 
   if (!isfinite_fp16(x1) || isnan_fp16(x2)){
     ret_raw_ = 0x7e00u; // NaN in fp16
   }else if(eq_nonan_fp16(x1, x2)){
-    ret_raw_ = *x1_raw;
+    ret_raw_ = x1.v;
   }else if(iszero_fp16(x1)){
-    ret_raw_ = (*x2_raw & 0x8000u) + 1;
-  }else if(!(*x1_raw & 0x8000u)){
-    if (*(short const*)x1_raw > *(short const*)x2_raw){
-      ret_raw_ = *x1_raw - 1;
+    ret_raw_ = (x2.v & 0x8000u) + 1;
+  }else if(!(x1.v & 0x8000u)){
+    if (*(short const*)&x1.v > *(short const*)&x2.v){
+      ret_raw_ = x1.v - 1;
     }else{
-      ret_raw_ = *x1_raw + 1;
+      ret_raw_ = x1.v + 1;
     }
-  }else if(!(*x2_raw & 0x8000u) || (*x1_raw & 0x7fffu) > (*x2_raw & 0x7fffu)) {
-    ret_raw_ = *x1_raw - 1;
+  }else if(!(x2.v & 0x8000u) || (x1.v & 0x7fffu) > (x2.v & 0x7fffu)) {
+    ret_raw_ = x1.v - 1;
   } else {
-    ret_raw_ = *x1_raw + 1;
+    ret_raw_ = x1.v + 1;
   }
-  return *(half*)&ret_raw_;
+  __clpy__half ret;
+  ret.v = ret_raw_;
+  return ret;
 }
+
+__attribute__((annotate("clpy_no_mangle"))) static __clpy__half convert_float_to_half(float x){
+  __clpy__half ret(x);
+  return ret;
+}
+
+static void __clpy_end_print_out() __attribute__((annotate("clpy_end_print_out")));
+#else
+#include "fp16.clh"
 #endif
