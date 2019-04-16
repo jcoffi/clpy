@@ -2,12 +2,18 @@
 import atexit
 import locale
 import logging
+import numpy
 import re
 
+from clpy.backend.opencl import api
 from clpy.backend.opencl cimport api
+from clpy.backend.opencl import exceptions
 from cython.view cimport array as cython_array
 
 from libc.stdlib cimport malloc
+from libc.stdlib cimport free
+from libc.string cimport memset
+from libc.string cimport memcpy
 
 cdef interpret_versionstr(versionstr):
     version_detector = re.compile('''OpenCL (\d+)\.(\d+)''')
@@ -135,6 +141,10 @@ for id in range(__num_devices):
         api.CreateCommandQueue(__contexts[id], __devices[id], 0)
 logging.info("SUCCESS")
 
+cdef cl_char* __supports_cl_khr_fp16 = \
+    <cl_char*>malloc(sizeof(cl_char)*__num_devices)
+memset(__supports_cl_khr_fp16, -1, sizeof(cl_char)*__num_devices)
+
 ##########################################
 # Functions
 ##########################################
@@ -161,6 +171,88 @@ cdef cl_device_id* get_devices():
 cdef cl_device_id get_device():
     global __current_device_id
     return __devices[__current_device_id]
+
+cdef cl_char check_cl_khr_fp16():
+    code = b'''
+        #pragma OPENCL EXTENSION cl_khr_fp16: enable
+        __kernel void check_cl_khr_fp16(__global half* v){
+          ushort x = 0x5140;
+          *v = *(const half*)&x;
+        }
+        '''
+    cdef size_t length
+    cdef char* src
+    cdef char* options
+    cdef cl_mem buf=NULL
+    cdef size_t global_work_size[3]
+    cdef size_t ptr
+    try:
+        device = __devices[__current_device_id]
+        context = __contexts[__current_device_id]
+        queue = __command_queues[__current_device_id]
+
+        length = len(code)
+        src = <char*>malloc(sizeof(char)*length)
+        memcpy(src, <char*>code, length)
+
+        program = api.CreateProgramWithSource(
+            context=context,
+            count=<size_t>1,
+            strings=&src,
+            lengths=&length)
+        options = b'-cl-fp32-correctly-rounded-divide-sqrt'
+        api.BuildProgram(
+            program,
+            1,
+            &device,
+            options,
+            <void*>NULL,
+            <void*>NULL)
+        kernel = api.CreateKernel(
+            program, b'check_cl_khr_fp16')
+        global_work_size[0] = 1
+        global_work_size[1] = 0
+        global_work_size[2] = 0
+        v = numpy.array([0], dtype=numpy.float16)
+        ptr = <size_t>v.ctypes.get_as_parameter().value
+        buf = api.CreateBuffer(
+            context,
+            CL_MEM_WRITE_ONLY,
+            <size_t>v.nbytes,
+            <void*>NULL)
+        api.SetKernelArg(
+            kernel,
+            0,
+            sizeof(cl_mem),
+            &buf)
+        api.EnqueueNDRangeKernel(
+            command_queue=queue,
+            kernel=kernel,
+            work_dim=1,
+            global_work_offset=<size_t*>NULL,
+            global_work_size=&global_work_size[0],
+            local_work_size=<size_t*>NULL)
+        api.EnqueueReadBuffer(
+            command_queue=queue,
+            buffer=buf,
+            blocking_read=api.BLOCKING,
+            offset=0,
+            cb=<size_t>v.nbytes,
+            host_ptr=<void*>ptr)
+        result = 1 if v[0] == numpy.float16(42) else 0
+    except exceptions.OpenCLRuntimeError:
+        result = 0
+    if buf != NULL:
+        api.ReleaseMemObject(buf)
+    free(src)
+    return result
+
+cpdef cl_bool supports_cl_khr_fp16():
+    global __current_device_id
+    if __supports_cl_khr_fp16[__current_device_id] == -1:
+        __supports_cl_khr_fp16[__current_device_id] = check_cl_khr_fp16()
+    return CL_TRUE if __supports_cl_khr_fp16[__current_device_id] == 1 \
+        else CL_FALSE
 
 
 def release():
