@@ -1,5 +1,7 @@
 #pragma once
+#ifdef __CLPY_ENABLE_CL_KHR_FP16
 #pragma OPENCL EXTENSION cl_khr_fp16: enable
+#endif
 
 // TODO: Implement common functions in OpenCL C
 #if 0
@@ -532,13 +534,16 @@ static void __clpy_end_print_out() __attribute__((annotate("clpy_end_print_out")
 #ifdef __ULTIMA
 __attribute__((annotate("clpy_no_mangle"))) static half convert_float_to_half(float x);
 #else
+#ifdef __CLPY_ENABLE_CL_KHR_FP16
 #include "fp16.clh"
 typedef half __clpy__half;
+#endif
 #endif
 
 #ifdef __ULTIMA
 __attribute__((annotate("clpy_no_mangle"))) static half clpy_nextafter_fp16(half x1, half x2);
 #else
+#ifdef __CLPY_ENABLE_CL_KHR_FP16
 static int isnan_fp16(half x){
   unsigned short const* x_raw = (unsigned short const*)&x;
   return (*x_raw & 0x7c00u) == 0x7c00u && (*x_raw & 0x03ffu) != 0x0000u;
@@ -580,4 +585,5 @@ static half clpy_nextafter_fp16(half x1, half x2){
   }
   return *(half*)&ret_raw_;
 }
+#endif
 #endif
