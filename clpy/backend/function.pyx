@@ -122,13 +122,15 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel, global_work_size,
     else:
         lws_ptr = <size_t*>NULL
 
+    command_queue = clpy.backend.opencl.env.get_command_queue()
     clpy.backend.opencl.api.EnqueueNDRangeKernel(
-        command_queue=clpy.backend.opencl.env.get_command_queue(),
+        command_queue=command_queue,
         kernel=kernel,
         work_dim=global_dim,  # asserted to be equal to local_dim
         global_work_offset=<size_t*>NULL,
         global_work_size=&gws[0],
         local_work_size=lws_ptr)
+    clpy.backend.opencl.api.Finish(command_queue)
 
 
 cdef class Function:

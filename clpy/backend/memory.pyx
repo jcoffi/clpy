@@ -286,6 +286,7 @@ cdef class MemoryPointer:
                         src_offset=src.cl_mem_offset(),
                         dst_offset=self.cl_mem_offset(),
                         cb=size)
+                    clpy.backend.opencl.api.Finish(queue)
             else:
                 tmp = libc.stdlib.malloc(size)
                 with src.device:
@@ -297,6 +298,7 @@ cdef class MemoryPointer:
                         offset=src.cl_mem_offset(),
                         cb=size,
                         host_ptr=tmp)
+                    clpy.backend.opencl.api.Finish(queue)
                 with self.device:
                     queue = clpy.backend.opencl.env.get_command_queue()
                     clpy.backend.opencl.api.EnqueueWriteBuffer(
@@ -306,6 +308,7 @@ cdef class MemoryPointer:
                         offset=self.cl_mem_offset(),
                         cb=size,
                         host_ptr=tmp)
+                    clpy.backend.opencl.api.Finish(queue)
                 libc.stdlib.free(tmp)
 
     cpdef copy_from_device_async(self, MemoryPointer src, size_t size, stream):
@@ -332,13 +335,15 @@ cdef class MemoryPointer:
         cdef size_t host_ptr = mem.value
         if size > 0:
             with self.device:
+                queue = clpy.backend.opencl.env.get_command_queue()
                 clpy.backend.opencl.api.EnqueueWriteBuffer(
-                    command_queue=clpy.backend.opencl.env.get_command_queue(),
+                    command_queue=queue,
                     buffer=self.buf.ptr,
                     blocking_write=clpy.backend.opencl.api.BLOCKING,
                     offset=self.cl_mem_offset(),
                     cb=size,
                     host_ptr=<void*>host_ptr)
+                clpy.backend.opencl.api.Finish(queue)
 
     cpdef copy_from_host_async(self, mem, size_t size, stream):
         """Copies a memory sequence from the host memory asynchronously.
@@ -402,13 +407,15 @@ cdef class MemoryPointer:
         cdef size_t host_ptr = mem.value
         if size > 0:
             with self.device:
+                queue = clpy.backend.opencl.env.get_command_queue()
                 clpy.backend.opencl.api.EnqueueReadBuffer(
-                    command_queue=clpy.backend.opencl.env.get_command_queue(),
+                    command_queue=queue,
                     buffer=self.buf.ptr,
                     blocking_read=clpy.backend.opencl.api.BLOCKING,
                     offset=self.cl_mem_offset(),
                     cb=size,
                     host_ptr=<void*>host_ptr)
+                clpy.backend.opencl.api.Finish(queue)
 
     cpdef copy_to_host_async(self, mem, size_t size, stream):
         """Copies a memory sequence to the host memory asynchronously.
@@ -441,6 +448,7 @@ cdef class MemoryPointer:
                 pattern_size=sizeof(value),
                 offset=0,
                 size=size)
+            clpy.backend.opencl.api.Finish(queue)
 
     cpdef memset_async(self, int value, size_t size, stream):
         """Fills a memory sequence by constant byte value asynchronously.
