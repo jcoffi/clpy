@@ -1,3 +1,4 @@
+# cython: profile=True
 import functools
 import operator
 cimport function

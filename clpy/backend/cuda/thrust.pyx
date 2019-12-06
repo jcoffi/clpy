@@ -1,3 +1,4 @@
+# cython: profile=True
 # distutils: language = c++
 
 """Thin wrapper of Thrust implementations for CuPy API."""

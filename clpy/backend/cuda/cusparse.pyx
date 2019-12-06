@@ -1,3 +1,4 @@
+# cython: profile=True
 cimport cython
 
 cdef extern from "cupy_cusparse.h":

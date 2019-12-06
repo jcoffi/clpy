@@ -1,3 +1,4 @@
+# cython: profile=True
 # -*- coding: utf-8 -*-
 import atexit
 import locale
