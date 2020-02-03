@@ -6,12 +6,12 @@ ERRORS_FILENAME=$WORKSPACE/erros.log
 # This script is kicked with $1=0 
 # only if "bash build_and_test.sh" has exited successfully.
 if [[ $1 -eq 0 ]]; then
-  BODY="Test (commit ${GIT_COMMIT}) passed in *$(uname -n)*."
+  BODY="Test (commit ${GIT_COMMIT}) passed on *$(uname -n)*."
   EVENT="APPROVE"
 else
   N_ERRORFILE_LINES=$(cat ${ERRORS_FILENAME} | wc -l)
   N_CROP=50
-  BODY="Test (commit ${GIT_COMMIT}) failed in *$(uname -n)*.
+  BODY="Test (commit ${GIT_COMMIT}) failed on *$(uname -n)*.
 \`\`\`
 $(head -n ${N_CROP} ${ERRORS_FILENAME})
 \`\`\`"
