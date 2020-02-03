@@ -34,6 +34,7 @@ class TestAngle(unittest.TestCase):
         x = testing.shaped_arange((2, 3), xp, dtype)
         return xp.angle(x)
 
+    @testing.skip_when_disabled_cl_khr_fp16
     @testing.for_8bit_integer_dtypes()
     @testing.numpy_clpy_array_almost_equal()
     def test_angle_8bit(self, xp, dtype):

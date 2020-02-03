@@ -178,6 +178,7 @@ class TestFusionTrigonometric(unittest.TestCase):
         b = testing.shaped_reverse_arange((2, 3), xp, dtype)
         return a, b
 
+    @testing.skip_when_disabled_cl_khr_fp16
     @testing.for_8bit_integer_dtypes()
     @testing.numpy_clpy_allclose(atol=1e-5)
     @fusion_default_array_equal()
@@ -185,6 +186,7 @@ class TestFusionTrigonometric(unittest.TestCase):
         a = testing.shaped_arange((2, 3), xp, dtype)
         return (a,)
 
+    @testing.skip_when_disabled_cl_khr_fp16
     @testing.for_8bit_integer_dtypes()
     @testing.numpy_clpy_allclose(atol=1e-5)
     @fusion_default_array_equal()
@@ -251,6 +253,7 @@ class TestFusionHyperbolic(unittest.TestCase):
         a = testing.shaped_arange((2, 3), xp, dtype)
         return (a,)
 
+    @testing.skip_when_disabled_cl_khr_fp16
     @testing.for_8bit_integer_dtypes()
     @testing.numpy_clpy_allclose(atol=1e-5)
     @fusion_default_array_equal()
@@ -314,6 +317,7 @@ class TestFusionRounding(unittest.TestCase):
         a = xp.array([-3, -2, -1, 1, 2, 3], dtype=dtype)
         return (a,)
 
+    @testing.skip_when_disabled_cl_khr_fp16
     @testing.for_8bit_integer_dtypes()
     @testing.numpy_clpy_allclose(atol=1e-5)
     @fusion_default_array_equal()
@@ -321,6 +325,7 @@ class TestFusionRounding(unittest.TestCase):
         a = testing.shaped_arange((2, 3), xp, dtype)
         return (a,)
 
+    @testing.skip_when_disabled_cl_khr_fp16
     @testing.for_dtypes(['?', 'b'])
     @testing.numpy_clpy_allclose(atol=1e-5)
     @fusion_default_array_equal()
@@ -373,6 +378,7 @@ class TestFusionExplog(unittest.TestCase):
         b = testing.shaped_reverse_arange((2, 3), xp, dtype)
         return a, b
 
+    @testing.skip_when_disabled_cl_khr_fp16
     @testing.for_8bit_integer_dtypes()
     @testing.numpy_clpy_allclose(atol=1e-5)
     @fusion_default_array_equal()
@@ -380,6 +386,7 @@ class TestFusionExplog(unittest.TestCase):
         a = testing.shaped_arange((2, 3), xp, dtype)
         return (a,)
 
+    @testing.skip_when_disabled_cl_khr_fp16
     @testing.for_8bit_integer_dtypes()
     @testing.numpy_clpy_allclose(atol=1e-5)
     @fusion_default_array_equal()
@@ -448,6 +455,7 @@ class TestFusionFloating(unittest.TestCase):
         b = testing.shaped_reverse_arange((2, 3), xp, dtype)
         return a, b
 
+    @testing.skip_when_disabled_cl_khr_fp16
     @testing.for_8bit_integer_dtypes()
     @testing.numpy_clpy_allclose(atol=1e-5)
     @fusion_default_array_equal()
@@ -947,6 +955,7 @@ class TestFusionMisc(unittest.TestCase):
 
         return g(a)
 
+    @testing.skip_when_disabled_cl_khr_fp16
     @testing.for_8bit_integer_dtypes()
     @testing.numpy_clpy_allclose(atol=1e-5)
     def check_unary_8bit(self, name, xp, dtype, no_bool=False):

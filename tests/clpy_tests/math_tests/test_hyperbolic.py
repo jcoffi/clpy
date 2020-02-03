@@ -14,6 +14,7 @@ class TestHyperbolic(unittest.TestCase):
         a = testing.shaped_arange((2, 3), xp, dtype)
         return getattr(xp, name)(a)
 
+    @testing.skip_when_disabled_cl_khr_fp16
     @testing.for_8bit_integer_dtypes()
     @testing.numpy_clpy_allclose(atol=1e-5)
     def check_unary_8bit(self, name, xp, dtype):
