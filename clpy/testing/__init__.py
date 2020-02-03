@@ -13,6 +13,7 @@ from clpy.testing.array import assert_array_list_equal  # NOQA
 from clpy.testing.array import assert_array_max_ulp  # NOQA
 from clpy.testing.attr import gpu  # NOQA
 from clpy.testing.attr import multi_gpu  # NOQA
+from clpy.testing.attr import skip_when_disabled_cl_khr_fp16  # NOQA
 from clpy.testing.attr import slow  # NOQA
 from clpy.testing.bufio import readbuf  # NOQA
 from clpy.testing.bufio import writebuf  # NOQA

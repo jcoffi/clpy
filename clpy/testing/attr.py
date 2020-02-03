@@ -1,3 +1,4 @@
+import clpy
 import os
 import unittest
 
@@ -65,3 +66,10 @@ def gpu(f):
 
     check_available()
     return multi_gpu(1)(pytest.mark.gpu(f))
+
+
+def skip_when_disabled_cl_khr_fp16(f):
+    check_available()
+    return unittest.skipUnless(
+        clpy.backend.opencl.env.supports_cl_khr_fp16() ==
+        clpy.backend.opencl.api.TRUE, "")(f)
