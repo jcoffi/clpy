@@ -20,6 +20,20 @@ class TestMisc(unittest.TestCase):
         a = testing.shaped_arange((2, 3), xp, dtype)
         return getattr(xp, name)(a)
 
+    @testing.for_all_dtypes(no_complex=True, no_8bit_integer=True)
+    @testing.numpy_clpy_allclose(atol=1e-5)
+    def check_unary_without_8bit(self, name, xp, dtype):
+        a = testing.shaped_arange((2, 3), xp, dtype)
+        return getattr(xp, name)(a)
+
+    @testing.for_8bit_integer_dtypes()
+    @testing.numpy_clpy_allclose(atol=1e-5)
+    def check_unary_8bit(self, name, xp, dtype):
+        if numpy.dtype(dtype).char == '?':
+            return numpy.int_(0)
+        a = testing.shaped_arange((2, 3), xp, dtype)
+        return getattr(xp, name)(a)
+
     @testing.for_all_dtypes(no_complex=True)
     @testing.numpy_clpy_allclose(atol=1e-5)
     def check_binary(self, name, xp, dtype, no_bool=False):
@@ -85,7 +99,8 @@ class TestMisc(unittest.TestCase):
     @testing.with_requires('numpy>=1.11.2')
     def test_sqrt(self):
         # numpy.sqrt is broken in numpy<1.11.2
-        self.check_unary('sqrt')
+        self.check_unary_without_8bit('sqrt')
+        self.check_unary_8bit('sqrt')
 
     def test_square(self):
         self.check_unary('square')

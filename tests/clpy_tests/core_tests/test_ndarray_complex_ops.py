@@ -28,9 +28,15 @@ class TestAngle(unittest.TestCase):
 
     _multiprocess_can_split_ = True
 
-    @testing.for_all_dtypes()
+    @testing.for_all_dtypes(no_8bit_integer=True)
     @testing.numpy_clpy_array_almost_equal()
     def test_angle(self, xp, dtype):
+        x = testing.shaped_arange((2, 3), xp, dtype)
+        return xp.angle(x)
+
+    @testing.for_8bit_integer_dtypes()
+    @testing.numpy_clpy_array_almost_equal()
+    def test_angle_8bit(self, xp, dtype):
         x = testing.shaped_arange((2, 3), xp, dtype)
         return xp.angle(x)
 

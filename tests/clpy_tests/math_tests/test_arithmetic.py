@@ -17,6 +17,18 @@ class TestArithmetic(unittest.TestCase):
         a = testing.shaped_arange((2, 3), xp, dtype)
         return getattr(xp, name)(a)
 
+    @testing.for_all_dtypes(no_8bit_integer=True)
+    @testing.numpy_clpy_allclose(atol=1e-5)
+    def check_unary_without_8bit(self, name, xp, dtype):
+        a = testing.shaped_arange((2, 3), xp, dtype)
+        return getattr(xp, name)(a)
+
+    @testing.for_8bit_integer_dtypes()
+    @testing.numpy_clpy_allclose(atol=1e-5)
+    def check_unary_8bit(self, name, xp, dtype):
+        a = testing.shaped_arange((2, 3), xp, dtype)
+        return getattr(xp, name)(a)
+
     @testing.for_all_dtypes()
     @testing.numpy_clpy_allclose(atol=1e-4)
     def check_binary(self, name, xp, dtype, no_complex=False, no_bool=False):
@@ -31,6 +43,18 @@ class TestArithmetic(unittest.TestCase):
     @testing.for_dtypes(['?', 'b', 'h', 'i', 'q', 'f', 'd'])
     @testing.numpy_clpy_allclose(atol=1e-5)
     def check_unary_negative(self, name, xp, dtype):
+        a = xp.array([-3, -2, -1, 1, 2, 3], dtype=dtype)
+        return getattr(xp, name)(a)
+
+    @testing.for_dtypes(['h', 'i', 'q', 'f', 'd'])
+    @testing.numpy_clpy_allclose(atol=1e-5)
+    def check_unary_negative_without_8bit(self, name, xp, dtype):
+        a = xp.array([-3, -2, -1, 1, 2, 3], dtype=dtype)
+        return getattr(xp, name)(a)
+
+    @testing.for_dtypes(['?', 'b'])
+    @testing.numpy_clpy_allclose(atol=1e-5)
+    def check_unary_negative_8bit(self, name, xp, dtype):
         a = xp.array([-3, -2, -1, 1, 2, 3], dtype=dtype)
         return getattr(xp, name)(a)
 
@@ -151,9 +175,11 @@ class TestArithmetic(unittest.TestCase):
         self.check_raises_with_numpy_input(1, 'conj')
 
     def test_angle(self):
-        self.check_unary('angle')
-        self.check_unary_negative('angle')
+        self.check_unary_without_8bit('angle')
+        self.check_unary_negative_without_8bit('angle')
         self.check_raises_with_numpy_input(1, 'angle')
+        self.check_unary_8bit('angle')
+        self.check_unary_negative_8bit('angle')
 
     def test_real(self):
         self.check_unary('real')

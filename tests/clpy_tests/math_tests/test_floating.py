@@ -19,9 +19,16 @@ class TestFloating(unittest.TestCase):
         a = testing.shaped_arange((2, 3), xp, dtype)
         return getattr(xp, name)(a)
 
-    @testing.for_all_dtypes(no_complex=True)
+    @testing.for_all_dtypes(no_complex=True, no_8bit_integer=True)
     @testing.numpy_clpy_allclose(atol=1e-5)
     def check_binary(self, name, xp, dtype):
+        a = testing.shaped_arange((2, 3), xp, dtype)
+        b = testing.shaped_reverse_arange((2, 3), xp, dtype)
+        return getattr(xp, name)(a, b)
+
+    @testing.for_8bit_integer_dtypes()
+    @testing.numpy_clpy_allclose(atol=1e-5)
+    def check_binary_8bit(self, name, xp, dtype):
         a = testing.shaped_arange((2, 3), xp, dtype)
         b = testing.shaped_reverse_arange((2, 3), xp, dtype)
         return getattr(xp, name)(a, b)
@@ -31,6 +38,7 @@ class TestFloating(unittest.TestCase):
 
     def test_copysign(self):
         self.check_binary('copysign')
+        self.check_binary_8bit('copysign')
 
     @testing.for_float_dtypes(name='ftype')
     @testing.for_dtypes(['i', 'l'], name='itype')
@@ -54,3 +62,4 @@ class TestFloating(unittest.TestCase):
 
     def test_nextafter(self):
         self.check_binary('nextafter')
+        self.check_binary_8bit('nextafter')

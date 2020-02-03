@@ -163,17 +163,32 @@ class TestFusionTrigonometric(unittest.TestCase):
 
     _multiprocess_can_split_ = True
 
-    @testing.for_all_dtypes(no_complex=True)
+    @testing.for_all_dtypes(no_complex=True, no_8bit_integer=True)
     @testing.numpy_clpy_allclose(atol=1e-5)
     @fusion_default_array_equal()
     def check_unary(self, name, xp, dtype):
         a = testing.shaped_arange((2, 3), xp, dtype)
         return (a,)
 
-    @testing.for_all_dtypes(no_complex=True)
+    @testing.for_all_dtypes(no_complex=True, no_8bit_integer=True)
     @testing.numpy_clpy_allclose(atol=1e-5)
     @fusion_default_array_equal()
     def check_binary(self, name, xp, dtype):
+        a = testing.shaped_arange((2, 3), xp, dtype)
+        b = testing.shaped_reverse_arange((2, 3), xp, dtype)
+        return a, b
+
+    @testing.for_8bit_integer_dtypes()
+    @testing.numpy_clpy_allclose(atol=1e-5)
+    @fusion_default_array_equal()
+    def check_unary_8bit(self, name, xp, dtype):
+        a = testing.shaped_arange((2, 3), xp, dtype)
+        return (a,)
+
+    @testing.for_8bit_integer_dtypes()
+    @testing.numpy_clpy_allclose(atol=1e-5)
+    @fusion_default_array_equal()
+    def check_binary_8bit(self, name, xp, dtype):
         a = testing.shaped_arange((2, 3), xp, dtype)
         b = testing.shaped_reverse_arange((2, 3), xp, dtype)
         return a, b
@@ -187,12 +202,15 @@ class TestFusionTrigonometric(unittest.TestCase):
 
     def test_sin(self):
         self.check_unary('sin')
+        self.check_unary_8bit('sin')
 
     def test_cos(self):
         self.check_unary('cos')
+        self.check_unary_8bit('cos')
 
     def test_tan(self):
         self.check_unary('tan')
+        self.check_unary_8bit('tan')
 
     def test_arcsin(self):
         self.check_unary_unit('arcsin')
@@ -202,18 +220,23 @@ class TestFusionTrigonometric(unittest.TestCase):
 
     def test_arctan(self):
         self.check_unary('arctan')
+        self.check_unary_8bit('arctan')
 
     def test_arctan2(self):
         self.check_binary('arctan2')
+        self.check_binary_8bit('arctan2')
 
     def test_hypot(self):
         self.check_binary('hypot')
+        self.check_binary_8bit('hypot')
 
     def test_deg2rad(self):
         self.check_unary('deg2rad')
+        self.check_unary_8bit('deg2rad')
 
     def test_rad2deg(self):
         self.check_unary('rad2deg')
+        self.check_unary_8bit('rad2deg')
 
 
 @testing.gpu
@@ -221,10 +244,17 @@ class TestFusionHyperbolic(unittest.TestCase):
 
     _multiprocess_can_split_ = True
 
-    @testing.for_all_dtypes(no_complex=True)
+    @testing.for_all_dtypes(no_complex=True, no_8bit_integer=True)
     @testing.numpy_clpy_allclose(atol=1e-5)
     @fusion_default_array_equal()
     def check_unary(self, name, xp, dtype):
+        a = testing.shaped_arange((2, 3), xp, dtype)
+        return (a,)
+
+    @testing.for_8bit_integer_dtypes()
+    @testing.numpy_clpy_allclose(atol=1e-5)
+    @fusion_default_array_equal()
+    def check_unary_8bit(self, name, xp, dtype):
         a = testing.shaped_arange((2, 3), xp, dtype)
         return (a,)
 
@@ -244,15 +274,19 @@ class TestFusionHyperbolic(unittest.TestCase):
 
     def test_sinh(self):
         self.check_unary('sinh')
+        self.check_unary_8bit('sinh')
 
     def test_cosh(self):
         self.check_unary('cosh')
+        self.check_unary_8bit('cosh')
 
     def test_tanh(self):
         self.check_unary('tanh')
+        self.check_unary_8bit('tanh')
 
     def test_arcsinh(self):
         self.check_unary('arcsinh')
+        self.check_unary_8bit('arcsinh')
 
     def test_arccosh(self):
         self.check_unary_unit1('arccosh')
@@ -266,37 +300,57 @@ class TestFusionRounding(unittest.TestCase):
 
     _multiprocess_can_split_ = True
 
-    @testing.for_all_dtypes(no_complex=True)
+    @testing.for_all_dtypes(no_complex=True, no_8bit_integer=True)
     @testing.numpy_clpy_allclose(atol=1e-5)
     @fusion_default_array_equal()
     def check_unary(self, name, xp, dtype):
         a = testing.shaped_arange((2, 3), xp, dtype)
         return (a,)
 
-    @testing.for_dtypes(['?', 'b', 'h', 'i', 'q', 'f', 'd'])
+    @testing.for_dtypes(['h', 'i', 'q', 'f', 'd'])
     @testing.numpy_clpy_allclose(atol=1e-5)
     @fusion_default_array_equal()
     def check_unary_negative(self, name, xp, dtype):
         a = xp.array([-3, -2, -1, 1, 2, 3], dtype=dtype)
         return (a,)
 
+    @testing.for_8bit_integer_dtypes()
+    @testing.numpy_clpy_allclose(atol=1e-5)
+    @fusion_default_array_equal()
+    def check_unary_8bit(self, name, xp, dtype):
+        a = testing.shaped_arange((2, 3), xp, dtype)
+        return (a,)
+
+    @testing.for_dtypes(['?', 'b'])
+    @testing.numpy_clpy_allclose(atol=1e-5)
+    @fusion_default_array_equal()
+    def check_unary_negative_8bit(self, name, xp, dtype):
+        a = xp.array([-3, -2, -1, 1, 2, 3], dtype=dtype)
+        return (a,)
+
     def test_rint(self):
         self.check_unary('rint')
+        self.check_unary_8bit('rint')
 
     def test_rint_negative(self):
         self.check_unary_negative('rint')
+        self.check_unary_negative_8bit('rint')
 
     def test_floor(self):
         self.check_unary('floor')
+        self.check_unary_8bit('floor')
 
     def test_ceil(self):
         self.check_unary('ceil')
+        self.check_unary_8bit('ceil')
 
     def test_trunc(self):
         self.check_unary('trunc')
+        self.check_unary_8bit('trunc')
 
     def test_fix(self):
         self.check_unary('fix')
+        self.check_unary_8bit('fix')
 
 
 @testing.gpu
@@ -304,14 +358,14 @@ class TestFusionExplog(unittest.TestCase):
 
     _multiprocess_can_split_ = True
 
-    @testing.for_all_dtypes(no_complex=True)
+    @testing.for_all_dtypes(no_complex=True, no_8bit_integer=True)
     @testing.numpy_clpy_allclose(atol=1e-5)
     @fusion_default_array_equal()
     def check_unary(self, name, xp, dtype):
         a = testing.shaped_arange((2, 3), xp, dtype)
         return (a,)
 
-    @testing.for_all_dtypes(no_complex=True)
+    @testing.for_all_dtypes(no_complex=True, no_8bit_integer=True)
     @testing.numpy_clpy_allclose(atol=1e-5)
     @fusion_default_array_equal()
     def check_binary(self, name, xp, dtype):
@@ -319,35 +373,59 @@ class TestFusionExplog(unittest.TestCase):
         b = testing.shaped_reverse_arange((2, 3), xp, dtype)
         return a, b
 
+    @testing.for_8bit_integer_dtypes()
+    @testing.numpy_clpy_allclose(atol=1e-5)
+    @fusion_default_array_equal()
+    def check_unary_8bit(self, name, xp, dtype):
+        a = testing.shaped_arange((2, 3), xp, dtype)
+        return (a,)
+
+    @testing.for_8bit_integer_dtypes()
+    @testing.numpy_clpy_allclose(atol=1e-5)
+    @fusion_default_array_equal()
+    def check_binary_8bit(self, name, xp, dtype):
+        a = testing.shaped_arange((2, 3), xp, dtype)
+        b = testing.shaped_reverse_arange((2, 3), xp, dtype)
+        return a, b
+
     def test_exp(self):
         self.check_unary('exp')
+        self.check_unary_8bit('exp')
 
     def test_expm1(self):
         self.check_unary('expm1')
+        self.check_unary_8bit('expm1')
 
     def test_exp2(self):
         self.check_unary('exp2')
+        self.check_unary_8bit('exp2')
 
     def test_log(self):
         with testing.NumpyError(divide='ignore'):
             self.check_unary('log')
+            self.check_unary_8bit('log')
 
     def test_log10(self):
         with testing.NumpyError(divide='ignore'):
             self.check_unary('log10')
+            self.check_unary_8bit('log10')
 
     def test_log2(self):
         with testing.NumpyError(divide='ignore'):
             self.check_unary('log2')
+            self.check_unary_8bit('log2')
 
     def test_log1p(self):
         self.check_unary('log1p')
+        self.check_unary_8bit('log1p')
 
     def test_logaddexp(self):
         self.check_binary('logaddexp')
+        self.check_binary_8bit('logaddexp')
 
     def test_logaddexp2(self):
         self.check_binary('logaddexp2')
+        self.check_binary_8bit('logaddexp2')
 
 
 @testing.gpu
@@ -362,10 +440,18 @@ class TestFusionFloating(unittest.TestCase):
         a = testing.shaped_arange((2, 3), xp, dtype)
         return (a,)
 
-    @testing.for_all_dtypes(no_complex=True)
+    @testing.for_all_dtypes(no_complex=True, no_8bit_integer=True)
     @testing.numpy_clpy_allclose(atol=1e-5)
     @fusion_default_array_equal()
     def check_binary(self, name, xp, dtype):
+        a = testing.shaped_arange((2, 3), xp, dtype)
+        b = testing.shaped_reverse_arange((2, 3), xp, dtype)
+        return a, b
+
+    @testing.for_8bit_integer_dtypes()
+    @testing.numpy_clpy_allclose(atol=1e-5)
+    @fusion_default_array_equal()
+    def check_binary_8bit(self, name, xp, dtype):
         a = testing.shaped_arange((2, 3), xp, dtype)
         b = testing.shaped_reverse_arange((2, 3), xp, dtype)
         return a, b
@@ -388,6 +474,7 @@ class TestFusionFloating(unittest.TestCase):
 
     def test_copysign(self):
         self.check_binary('copysign')
+        self.check_binary_8bit('copysign')
 
     @testing.for_float_dtypes()
     def test_frexp(self, dtype):
@@ -408,6 +495,7 @@ class TestFusionFloating(unittest.TestCase):
 
     def test_nextafter(self):
         self.check_binary('nextafter')
+        self.check_binary_8bit('nextafter')
 
 
 @testing.gpu
@@ -846,6 +934,32 @@ class TestFusionMisc(unittest.TestCase):
 
         return g(a)
 
+    @testing.for_all_dtypes(no_complex=True, no_8bit_integer=True)
+    @testing.numpy_clpy_allclose(atol=1e-5)
+    def check_unary_without_8bit(self, name, xp, dtype, no_bool=False):
+        if no_bool and numpy.dtype(dtype).char == '?':
+            return numpy.int_(0)
+        a = testing.shaped_arange((2, 3), xp, dtype)
+
+        @clpy.fuse()
+        def g(x):
+            return getattr(clpy, name)(x)
+
+        return g(a)
+
+    @testing.for_8bit_integer_dtypes()
+    @testing.numpy_clpy_allclose(atol=1e-5)
+    def check_unary_8bit(self, name, xp, dtype, no_bool=False):
+        if no_bool and numpy.dtype(dtype).char == '?':
+            return numpy.int_(0)
+        a = testing.shaped_arange((2, 3), xp, dtype)
+
+        @clpy.fuse()
+        def g(x):
+            return getattr(clpy, name)(x)
+
+        return g(a)
+
     @testing.for_all_dtypes(no_complex=True)
     @testing.numpy_clpy_allclose(atol=1e-5)
     def check_binary(self, name, xp, dtype, no_bool=False):
@@ -897,7 +1011,8 @@ class TestFusionMisc(unittest.TestCase):
     @testing.with_requires('numpy>=1.11.2')
     def test_sqrt(self):
         # numpy.sqrt is broken in numpy<1.11.2
-        self.check_unary('sqrt')
+        self.check_unary_without_8bit('sqrt')
+        self.check_unary_8bit('sqrt')
 
     def test_square(self):
         self.check_unary('square')
