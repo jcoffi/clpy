@@ -509,24 +509,31 @@ def for_dtypes(dtypes, name='dtype'):
 _complex_dtypes = (numpy.complex64, numpy.complex128)
 _regular_float_dtypes = (numpy.float64, numpy.float32)
 _float_dtypes = _regular_float_dtypes + (numpy.float16,)
-_signed_dtypes = tuple(numpy.dtype(i).type for i in 'bhilq')
-_unsigned_dtypes = tuple(numpy.dtype(i).type for i in 'BHILQ')
+_signed_dtypes_without_int8 = tuple(numpy.dtype(i).type for i in 'hilq')
+_signed_dtypes = (numpy.int8,) + _signed_dtypes_without_int8
+_unsigned_dtypes_without_uint8 = tuple(numpy.dtype(i).type for i in 'HILQ')
+_unsigned_dtypes = (numpy.uint8,) + _unsigned_dtypes_without_uint8
+_int_dtypes_without_8bit = _signed_dtypes_without_int8 + \
+    _unsigned_dtypes_without_uint8
 _int_dtypes = _signed_dtypes + _unsigned_dtypes
 _int_bool_dtypes = _int_dtypes + (numpy.bool_,)
 _regular_dtypes = _regular_float_dtypes + _int_bool_dtypes
-_dtypes = _float_dtypes + _int_bool_dtypes
+_8bit_int_dtypes = tuple(numpy.dtype(i).type for i in 'bB')
+_8bit_int_bool_dtypes = tuple(numpy.dtype(i).type for i in '?bB')
 
 
-def _make_all_dtypes(no_float16, no_bool, no_complex):
+def _make_all_dtypes(no_float16, no_bool, no_complex, no_8bit_integer):
     if no_float16:
         dtypes = _regular_float_dtypes
     else:
         dtypes = _float_dtypes
 
-    if no_bool:
-        dtypes += _int_dtypes
-    else:
-        dtypes += _int_bool_dtypes
+    dtypes += _int_dtypes_without_8bit
+
+    if not no_8bit_integer:
+        dtypes += _8bit_int_dtypes
+        if not no_bool:
+            dtypes += (numpy.bool_,)
 
     # if not no_complex:
     #     # TODO(LWisteria): Support complex in OpenCL
@@ -536,7 +543,7 @@ def _make_all_dtypes(no_float16, no_bool, no_complex):
 
 
 def for_all_dtypes(name='dtype', no_float16=True, no_bool=False,
-                   no_complex=False):
+                   no_complex=False, no_8bit_integer=False):
     """Decorator that checks the fixture with all dtypes.
 
     Args:
@@ -591,8 +598,10 @@ def for_all_dtypes(name='dtype', no_float16=True, no_bool=False,
 
     .. seealso:: :func:`clpy.testing.for_dtypes`
     """
-    return for_dtypes(_make_all_dtypes(no_float16, no_bool, no_complex),
-                      name=name)
+    return for_dtypes(_make_all_dtypes(
+        no_float16, no_bool, no_complex,
+        no_8bit_integer),
+        name=name)
 
 
 def for_float_dtypes(name='dtype', no_float16=True):
@@ -615,7 +624,7 @@ def for_float_dtypes(name='dtype', no_float16=True):
         return for_dtypes(_float_dtypes, name=name)
 
 
-def for_signed_dtypes(name='dtype'):
+def for_signed_dtypes(name='dtype', no_int8=False):
     """Decorator that checks the fixture with signed dtypes.
 
     Args:
@@ -627,10 +636,13 @@ def for_signed_dtypes(name='dtype'):
     .. seealso:: :func:`clpy.testing.for_dtypes`,
         :func:`clpy.testing.for_all_dtypes`
     """
-    return for_dtypes(_signed_dtypes, name=name)
+    if no_int8:
+        return for_dtypes(_signed_dtypes_without_int8, name=name)
+    else:
+        return for_dtypes(_signed_dtypes, name=name)
 
 
-def for_unsigned_dtypes(name='dtype'):
+def for_unsigned_dtypes(name='dtype', no_uint8=False):
     """Decorator that checks the fixture with all dtypes.
 
     Args:
@@ -643,10 +655,13 @@ def for_unsigned_dtypes(name='dtype'):
     .. seealso:: :func:`clpy.testing.for_dtypes`,
         :func:`clpy.testing.for_all_dtypes`
     """
-    return for_dtypes(_unsigned_dtypes, name=name)
+    if no_uint8:
+        return for_dtypes(_unsigned_dtypes_without_uint8, name=name)
+    else:
+        return for_dtypes(_unsigned_dtypes, name=name)
 
 
-def for_int_dtypes(name='dtype', no_bool=False):
+def for_int_dtypes(name='dtype', no_bool=False, no_8bit_integer=False):
     """Decorator that checks the fixture with integer and optionally bool dtypes.
 
     Args:
@@ -662,10 +677,17 @@ def for_int_dtypes(name='dtype', no_bool=False):
     .. seealso:: :func:`clpy.testing.for_dtypes`,
         :func:`clpy.testing.for_all_dtypes`
     """
-    if no_bool:
-        return for_dtypes(_int_dtypes, name=name)
+    if no_8bit_integer:
+        return for_dtypes(_int_dtypes_without_8bit, name=name)
     else:
-        return for_dtypes(_int_bool_dtypes, name=name)
+        if no_bool:
+            return for_dtypes(_int_dtypes, name=name)
+        else:
+            return for_dtypes(_int_bool_dtypes, name=name)
+
+
+def for_8bit_integer_dtypes(name='dtype'):
+    return for_dtypes(_8bit_int_bool_dtypes, name=name)
 
 
 def for_dtypes_combination(types, names=('dtype',), full=None):
@@ -743,7 +765,7 @@ def for_dtypes_combination(types, names=('dtype',), full=None):
 
 def for_all_dtypes_combination(names=('dtyes',),
                                no_float16=True, no_bool=False, full=None,
-                               no_complex=False):
+                               no_complex=False, no_8bit_integer=False):
     """Decorator that checks the fixture with a product set of all dtypes.
 
     Args:
@@ -761,11 +783,11 @@ def for_all_dtypes_combination(names=('dtyes',),
 
     .. seealso:: :func:`clpy.testing.for_dtypes_combination`
     """
-    types = _make_all_dtypes(no_float16, no_bool, no_complex)
+    types = _make_all_dtypes(no_float16, no_bool, no_complex, no_8bit_integer)
     return for_dtypes_combination(types, names, full)
 
 
-def for_signed_dtypes_combination(names=('dtype',), full=None):
+def for_signed_dtypes_combination(names=('dtype',), no_int8=False, full=None):
     """Decorator for parameterized test w.r.t. the product set of signed dtypes.
 
     Args:
@@ -777,10 +799,15 @@ def for_signed_dtypes_combination(names=('dtype',), full=None):
 
     .. seealso:: :func:`clpy.testing.for_dtypes_combination`
     """
-    return for_dtypes_combination(_signed_dtypes, names=names, full=full)
+    if no_int8:
+        types = _signed_dtypes_without_int8
+    else:
+        types = _signed_dtypes
+    return for_dtypes_combination(types, names=names, full=full)
 
 
-def for_unsigned_dtypes_combination(names=('dtype',), full=None):
+def for_unsigned_dtypes_combination(names=('dtype',), no_uint8=False,
+                                    full=None):
     """Decorator for parameterized test w.r.t. the product set of unsigned dtypes.
 
     Args:
@@ -792,10 +819,15 @@ def for_unsigned_dtypes_combination(names=('dtype',), full=None):
 
     .. seealso:: :func:`clpy.testing.for_dtypes_combination`
     """
-    return for_dtypes_combination(_unsigned_dtypes, names=names, full=full)
+    if no_uint8:
+        types = _unsigned_dtypes_without_uint8
+    else:
+        types = _unsigned_dtypes
+    return for_dtypes_combination(types, names=names, full=full)
 
 
-def for_int_dtypes_combination(names=('dtype',), no_bool=False, full=None):
+def for_int_dtypes_combination(names=('dtype',), no_bool=False,
+                               no_8bit_integer=False, full=None):
     """Decorator for parameterized test w.r.t. the product set of int and boolean.
 
     Args:
@@ -809,10 +841,13 @@ def for_int_dtypes_combination(names=('dtype',), no_bool=False, full=None):
 
     .. seealso:: :func:`clpy.testing.for_dtypes_combination`
     """
-    if no_bool:
-        types = _int_dtypes
+    if no_8bit_integer:
+        types = _int_dtypes_without_8bit
     else:
-        types = _int_bool_dtypes
+        if no_bool:
+            types = _int_dtypes
+        else:
+            types = _int_bool_dtypes
     return for_dtypes_combination(types, names, full)
 
 

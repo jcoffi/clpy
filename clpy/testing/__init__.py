@@ -17,6 +17,7 @@ from clpy.testing.attr import slow  # NOQA
 from clpy.testing.bufio import readbuf  # NOQA
 from clpy.testing.bufio import writebuf  # NOQA
 from clpy.testing.helper import assert_warns  # NOQA
+from clpy.testing.helper import for_8bit_integer_dtypes  # NOQA
 from clpy.testing.helper import for_all_dtypes  # NOQA
 from clpy.testing.helper import for_all_dtypes_combination  # NOQA
 from clpy.testing.helper import for_CF_orders  # NOQA
