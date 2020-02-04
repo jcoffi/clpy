@@ -130,6 +130,7 @@ cdef void GetProgramInfo(
         size_t param_value_size,
         void *param_value,
         size_t *param_value_size_ret) except *:
+
     cdef cl_int status
     status = clGetProgramInfo(
         program,
@@ -298,6 +299,39 @@ cdef void EnqueueFillBuffer(
         event)
     exceptions.check_status(status)
 
+cdef void EnqueueMarker(
+        cl_command_queue command_queue,
+        cl_event* event) except *:
+    cdef cl_int status = clEnqueueMarker(
+        command_queue,
+        event)
+    exceptions.check_status(status)
+
+cdef void EnqueueBarrierWithWaitList(
+        cl_command_queue command_queue,
+        cl_uint num_events_in_wait_list=0,
+        const cl_event* event_wait_list=<cl_event*>NULL,
+        cl_event* event=<cl_event*>NULL) except *:
+    cdef cl_int status = clEnqueueBarrierWithWaitList(
+        command_queue,
+        num_events_in_wait_list,
+        event_wait_list,
+        event)
+    exceptions.check_status(status)
+
+cdef void GetEventProfilingInfo(
+        cl_event event,
+        cl_profiling_info param_name,
+        size_t param_value_size,
+        void* param_value,
+        size_t* param_value_size_ret) except *:
+    cdef cl_int status = clGetEventProfilingInfo(
+        event,
+        param_name,
+        param_value_size,
+        param_value,
+        param_value_size_ret)
+    exceptions.check_status(status)
 
 cdef void Flush(cl_command_queue command_queue) except *:
     exceptions.check_status(clFlush(command_queue))

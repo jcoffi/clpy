@@ -172,3 +172,22 @@ for id in range(env.num_devices):
 
 def typeof_size():
     return __typesof_size[env.get_device_id()]
+
+
+cpdef size_t eventRecord() except *:
+    cdef cl_event event
+    api.EnqueueMarker(
+        env.get_command_queue(),
+        &event)
+    api.WaitForEvents(1, &event)
+    cpdef size_t time
+    api.GetEventProfilingInfo(
+        event,
+        CL_PROFILING_COMMAND_END,
+        sizeof(time),
+        &time,
+        NULL)
+    return time
+
+cpdef void eventSynchronize() except *:
+    api.Finish(env.get_command_queue())

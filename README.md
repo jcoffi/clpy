@@ -1,12 +1,12 @@
 # ClPy: OpenCL backend for CuPy
 
 *ClPy* is an implementation of [CuPy](https://cupy.chainer.org/)'s OpenCL backend.
-In other words, ClPy enables softwares written in CuPy to work also on OpenCL devices, not only on CUDA (NVIDIA) devices.
+In other words, ClPy enables software written in CuPy to also work on OpenCL devices, not only on devices that support CUDA (NVIDIA).
 
 ## Current status
 
-Current ClPy is release-candidate version, forked from [CuPy v2.1.0](https://github.com/cupy/cupy/releases/tag/v2.1.0).
-ClPy supports most of CuPy's functions.
+The current ClPy is a release-candidate version, forked from [CuPy v2.1.0](https://github.com/cupy/cupy/releases/tag/v2.1.0).
+ClPy supports most of CuPy's functionalities.
 
 * All core [ndarray](https://docs-cupy.chainer.org/en/v2.5.0/reference/ndarray.html)
 * All core [universal functions](https://docs-cupy.chainer.org/en/v2.5.0/reference/ufunc.html)
@@ -14,21 +14,21 @@ ClPy supports most of CuPy's functions.
 * BLAS library compatible with cuBLAS
 * Multiple devices (thus ChainerMN)
 
-ClPy is still under development and has limitations as followings.
+ClPy is still under development and has the following limitations.
 
 * Other CUDA libraries (cuSPARSE, cuSOLVER, cuDnn, cuRAND, thrust) are not supported
 * Half and complex are not supported
 * No multiple command queue (Stream on CUDA)
-* Dockerfile and some other files are just neglected thus don't work well
+* Dockerfile and some other files have not been updated and thus may not work
 
-Therefore, almost all tests from CuPy are passed excluding unsupported libraries. See current [CuPy's test and example results](https://github.com/fixstars/ClPy/wiki/cupy_test_example_results).
+The whole CuPy suite of tests are passing (with the exception of tests related to unsupported libraries). See current [CuPy's test and example results](https://github.com/fixstars/ClPy/wiki/cupy_test_example_results).
 
 Almost all [Chainer](https://chainer.org/) works.
 See current [Chainer's test and example results](https://github.com/fixstars/ClPy/wiki/chainer_test_example_results).
 
-## Recommended system
+## Recommended environments
 
-We develop and test ClPy in following environments.
+We develop and test ClPy using the following environments.
 
 * Primary machine
 	* OS: Ubuntu 16.04.4 LTS
@@ -41,8 +41,8 @@ We develop and test ClPy in following environments.
 	* GPU: NVIDIA TITAN V
 	* SDK: CUDA 9.2
 
-We develop ClPy with Python 3.6.5. Currently, we do not check the behavior on other versions of Python.
-We recommend those environments to all ClPy users. However, reports on other environments are welcome.
+We use Python 3.6.5 to develop ClPy, and currently do not check the behavior on other versions of Python.
+We recommend those environments to all ClPy users. However, reports from other environments are welcome.
 
 ## Installation
 
@@ -52,7 +52,7 @@ Install and setup OpenCL environment.
 
 `cl.h` and OpenCL libs (`libOpenCL.so`) must be able to be included and linked without any special path settings.
 
-For example with AMD APP SDK, you should set following environment variables:
+For example, for AMD APP SDK, the following environment variables should be set:
 
 ```sh
 export C_INCLUDE_PATH=${C_INCLUDE_PATH}:${AMDAPPSDKROOT}/include
@@ -60,19 +60,21 @@ export CPLUS_INCLUDE_PATH=${CPLUS_INCLUDE_PATH}:${AMDAPPSDKROOT}/include
 export LIBRARY_PATH=${LIBRARY_PATH}:${AMDAPPSDKROOT}/lib/x86_64
 ```
 
-and add ldconfig on `/etc/ldconf.so.d/` and `$ sudo ldconfig`.
+In addition, add the needed ldconfig files to `/etc/ldconf.so.d/`, then execute `$ sudo ldconfig`.
 
 ### Install LLVM/Clang
 
-Current ClPy requires LLVM/Clang 4.0, 5.0, 6.0, or 7.0.
-We **strongly** recommend that you build LLVM/Clang from the source codes and install it.
-However, at least in Ubuntu 16.04, you can use the LLVM/Clang from the Ubuntu official package repository.
-In that case, you need to set `PATH` and `CPLUS_INCLUDE_PATH` environment variables like below.
+The current ClPy version requires LLVM/Clang 4, 5, 6, 7, 8, or 9.
+We **strongly** recommend building and installing LLVM/Clang from source.
+However, at least in Ubuntu 16.04, you can use LLVM/Clang as provided by the Ubuntu official package repository.
+In that case, you will need to set `PATH` and `CPLUS_INCLUDE_PATH` environment variables as shown below.
 
 ```console
 # apt install clang-6.0 libclang-6.0-dev
 $ export PATH=/usr/lib/llvm-6.0/bin:${PATH}
 $ export CPLUS_INCLUDE_PATH=/usr/lib/llvm-6.0/include:${CPLUS_INCLUDE_PATH}
+$ export LIBRARY_PATH=/usr/lib/llvm-6.0/lib:${LIBRARY_PATH}
+$ export LD_LIBRARY_PATH=/usr/lib/llvm-6.0/lib:${LD_LIBRARY_PATH}
 ```
 
 ### Install CLBlast
@@ -82,8 +84,8 @@ Install it and set the paths if needed.
 
 ### Install ClPy
 
-After OpenCL and LLVM/Clang is successfully installed, install ClPy.
-ClPy uses `make` command in build process, so if you do not have `make` , please install it before install ClPy.
+As ClPy uses `make` in its build process, please install it before installing ClPy.
+Only install ClPy after installing OpenCL and LLVM/Clang.
 
 ```console
 $ pip install cython
@@ -92,19 +94,17 @@ $ python setup.py install
 
 ## How to use
 
-Run your CuPy code with `-m clpy` option ( e.g. `python -m clpy /path/to/chainer/examples/mnist/train_mnist.py -g0`).
-This option adds aliases to CuPy by hooking `import cupy` and call ClPy through `cupy.foobar`.
-You don't need to modify any your codes.
+Run your CuPy code using the `-m clpy` option (e.g. `python -m clpy /path/to/chainer/examples/mnist/train_mnist.py -g0`).
+This option adds aliases to CuPy by hooking `import cupy` and calls ClPy through `cupy.foobar`, thus no code modification is necessary.
 
-If you don't want to run with `-m` option, you must add `import clpy` before `import cupy` in your codes.
-`import clpy` adds the aliases same as `-m clpy`.
+If you don't want to have to run your code with the `-m` option, you must add `import clpy` before `import cupy` to your code.
+`import clpy` adds the same aliases as `-m clpy`.
 
-If you want to disable such aliases, set `export CLPY_NOT_HOOK_CUPY=1` before execution.
-Then, you need to replace `cupy` to `clpy` in your all codes (e.g. `import cupy` -> `import clpy`).
+If you want to disable those aliases, set `export CLPY_NOT_HOOK_CUPY=1` and replace `cupy` with `clpy` (e.g. `import cupy` -> `import clpy`) in all files that uses CuPy (e.g. Chainer).
 
-### Woking with Chainer
+### Compatibility with Chainer
 
-It's confirmed that ClPy works with [Chainer v3.3.0](https://github.com/chainer/chainer/tree/v3.3.0).
+ClPy is confirmed to work with [Chainer v3.3.0](https://github.com/chainer/chainer/tree/v3.3.0).
 
 ### Tests
 
@@ -117,22 +117,26 @@ $ python -m pytest test_you_want.py
 ## Development
 
 1. All source codes (including comments) and commit messages should be written in English.
-2. Issues and pull requests are welcome in any languages (recommended in English or Japanese).
-3. Detailed coding styles are same as [CuPy's](https://docs-cupy.chainer.org/en/stable/contribution.html#coding-guidelines). Read and follow the guidelines before submitting PRs.
+2. Issues and pull requests are welcome in any language (recommended in English or Japanese).
+3. Detailed coding styles are the same as [CuPy's](https://docs-cupy.chainer.org/en/stable/contribution.html#coding-guidelines). Read and follow the guidelines before submitting PRs.
 
 ## Future plan
 
-We are developing v2.1.0rc2 for next release.
+The next release will be v2.1.0rc2, and should include the following improvements.
 
-* Accelerate chainer's example performance
-* Multiple CommandQueue (Stream)
-* Support sorting algorithm
-* -- and other functions and/or bug fixes that someone develops and/or requests..
+* Improve chainer's example performance
+* Multiple CommandQueue (CUDA Stream)
+* Support for sorting algorithms
+* -- and other functions and/or bug fixes that someone develops and/or requests...
 
-We also plan to update CuPy's base version to v4 or v5 after beta release.
+We also plan on upgrading the base version from CuPy v2.1.0 to a latter version after releasing ClPy v2.1.0.
 
-Check [github's issues and pull requests](https://github.com/fixstars/clpy/issues) to get latest status.
+Check [github's issues and pull requests](https://github.com/fixstars/clpy/issues) to get the latest status.
 
 ## License
 
 MIT License (see `LICENSE` file).
+
+## Reference
+
+Tomokazu Higuchi, Naoki Yoshifuji, Tomoya Sakai, Yoriyuki Kitta, Ryousei Takano, Tsutomu Ikegami, Kenjiro Taura (2019): "ClPy: A NumPy-compatible Library Accelerated with OpenCL", *2019 IEEE International Parallel and Distributed Processing Symposium Workshops*, pp.933-940, [doi:10.1109/IPDPSW.2019.00159](https://doi.org/10.1109/IPDPSW.2019.00159). [Presentation @ Scalable Deep Learning over Parallel and Distributed Infrastructures 2019](https://docs.google.com/presentation/d/1UtZgK9La7Pz_3Qwm2hXg13TwkvKuCSLlKsGebBXY2EA)

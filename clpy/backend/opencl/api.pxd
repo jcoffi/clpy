@@ -117,6 +117,20 @@ cdef void EnqueueFillBuffer(
     cl_uint num_events_in_wait_list=*,
     cl_event* event_wait_list=*,
     cl_event* event=*) except *
+cdef void EnqueueMarker(
+    cl_command_queue command_queue,
+    cl_event* event) except *
+cdef void EnqueueBarrierWithWaitList(
+    cl_command_queue command_queue,
+    cl_uint num_events_in_wait_list=*,
+    const cl_event* event_wait_list=*,
+    cl_event* event=*) except *
+cdef void GetEventProfilingInfo(
+    cl_event event,
+    cl_profiling_info param_name,
+    size_t param_value_size,
+    void* param_value,
+    size_t* param_value_size_ret) except *
 cdef void Flush(cl_command_queue command_queue) except *
 cdef void Finish(cl_command_queue command_queue) except *
 cdef void ReleaseKernel(cl_kernel kernel) except *

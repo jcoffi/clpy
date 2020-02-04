@@ -100,9 +100,8 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel, global_work_size,
                 elif isinstance(a, bool):
                     a = numpy.bool_(a)
 
-                if numpy.issctype(type(a)):
-                    ptr = <size_t>numpy.array(a).ctypes.get_as_parameter() \
-                                                       .value
+                if core.numpy_scalar_type_set():
+                    ptr = <size_t>a.__array_interface__["data"][0]
                     size = a.nbytes
                 else:
                     raise TypeError('Unsupported type %s' % type(a))

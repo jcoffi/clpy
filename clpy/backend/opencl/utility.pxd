@@ -14,3 +14,6 @@ cdef cl_program CreateProgram(sources, cl_context context, num_devices,
                               cl_device_id* devices_ptrs,
                               options=*) except *
 cdef str GetProgramBuildLog(cl_program program, cl_device_id device)
+
+cpdef size_t eventRecord() except *
+cpdef void eventSynchronize() except *

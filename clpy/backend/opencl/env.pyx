@@ -138,7 +138,9 @@ cdef cl_command_queue* __command_queues = \
     <cl_command_queue*>malloc(sizeof(cl_command_queue)*__num_devices)
 for id in range(__num_devices):
     __command_queues[id] = \
-        api.CreateCommandQueue(__contexts[id], __devices[id], 0)
+        api.CreateCommandQueue(__contexts[id],
+                               __devices[id],
+                               CL_QUEUE_PROFILING_ENABLE)
 logging.info("SUCCESS")
 
 cdef cl_char* __supports_cl_khr_fp16 = \

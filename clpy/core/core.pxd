@@ -78,3 +78,5 @@ cdef class CArray:
 cdef class Size_t:
     cdef:
         readonly object val
+
+cdef set numpy_scalar_type_set()

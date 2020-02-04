@@ -8,11 +8,12 @@ import clpy as cp
 import numpy as np
 
 from utils import benchmark
+from utils import include_path
 from utils import load_kernel
 from utils import read_code
 
 
-sgemm_file = os.path.join(os.path.dirname(__file__), 'sgemm.cu')
+sgemm_file = os.path.join(os.path.dirname(__file__), 'sgemm.cl')
 
 
 def sgemm(A, B,
@@ -35,15 +36,18 @@ def sgemm(A, B,
               'BLK_M': blk_m, 'BLK_N': blk_n, 'BLK_K': blk_k,
               'DIM_XA': dim_xa, 'DIM_YA': dim_ya,
               'DIM_XB': dim_xb, 'DIM_YB': dim_yb,
-              'THR_M': blk_m // dim_x, 'THR_N': blk_n // dim_y}
+              'THR_M': blk_m // dim_x, 'THR_N': blk_n // dim_y,
+              '__kernel_arg_size_t': cp.backend.opencl.utility.typeof_size()}
     code = read_code(sgemm_file, params=config)
-    kern = load_kernel('sgemm', code)
+    kern = load_kernel('sgemm', code, ('-I{}'.format(include_path()),))
 
-    grid = (int(math.ceil(m / blk_m)), int(math.ceil(n / blk_n)), 1)
+    grid = (int(math.ceil(m / blk_m)) * dim_x,
+            int(math.ceil(n / blk_n)) * dim_y,
+            1)
     block = (dim_x, dim_y, 1)
     args = (m, n, k, A, B, C)
     shared_mem = blk_k * (blk_m + 1) * 4 + blk_n * (blk_k + 1) * 4
-    kern(grid, block, args=args, shared_mem=shared_mem)
+    kern(grid, block, args=args, local_mem=shared_mem)
     return C
 
 
@@ -74,6 +78,9 @@ def main():
         cp.testing.assert_array_almost_equal(
             sgemm(A, B), cp.dot(A, B), decimal=3)
 
+        # TODO(shusukeueda):
+        # ClPy does not support cp.backend.Event (clpy/backend/stream.py)
+
         # dry run
         for _ in range(3):
             sgemm(A, B)
@@ -81,11 +88,11 @@ def main():
 
         for _ in range(3):
             cp.dot(A, B)
-        cublas_times = benchmark(cp.dot, (A, B), n_run=5)
+        clblast_times = benchmark(cp.dot, (A, B), n_run=5)
 
     print('=============================Result===============================')
     print('hand written kernel time {} ms'.format(np.mean(kernel_times)))
-    print('cuBLAS              time {} ms'.format(np.mean(cublas_times)))
+    print('CLBlast             time {} ms'.format(np.mean(clblast_times)))
 
 
 if __name__ == '__main__':

@@ -21,12 +21,38 @@
 
 namespace headercvt{
 
+class MarkableLLVMOsOstream{
+  llvm::raw_os_ostream llvm_ost;
+  bool used = false;
+public:
+  MarkableLLVMOsOstream(std::ofstream& ofstream):llvm_ost(ofstream){
+  }
+  template <typename T>
+  MarkableLLVMOsOstream& operator << (T&& rhs){
+    llvm_ost << std::forward<T>(rhs);
+    used = true;
+    return *this;
+  }
+  decltype(llvm_ost)& without_using(){
+    return llvm_ost;
+  }
+  void use(){
+    used = true;
+  }
+  bool vacant() const{
+    return !used;
+  }
+  void flush(){
+    llvm_ost.flush();
+  }
+};
+
 std::ofstream
   types("types.pxi"),
   func_decl("func_decl.pxi"),
   preprocessor_defines("preprocessor_defines.pxi"),
   not_handled("not_handled.txt");
-llvm::raw_os_ostream
+MarkableLLVMOsOstream
   types_ostream(types),
   func_decl_ostream(func_decl),
   preprocessor_defines_ostream(preprocessor_defines),
@@ -56,17 +82,17 @@ static std::string clean_type_string(clang::QualType const& type){
 class preprocessor_defines_extractor : public clang::PPCallbacks{
 private:
   unsigned Indentation;
-  llvm::raw_ostream& Out;
+  MarkableLLVMOsOstream& Out;
 
-  llvm::raw_ostream& Indent() { return Indent(Indentation); }
-  llvm::raw_ostream& Indent(unsigned Indentation) {
+  MarkableLLVMOsOstream& Indent() { return Indent(Indentation); }
+  MarkableLLVMOsOstream& Indent(unsigned Indentation) {
     for (unsigned i = 0; i != Indentation; ++i)
       Out << indent_str;
     return Out;
   }
 
 public:
-  preprocessor_defines_extractor(llvm::raw_ostream& Out): Out(Out){
+  preprocessor_defines_extractor(MarkableLLVMOsOstream& Out): Out(Out){
     Indentation = preprocessor_defines_indentation;
   }
 
@@ -148,30 +174,30 @@ public:
 
 
 class typedef_printer : public clang::DeclVisitor<typedef_printer>{
-  llvm::raw_ostream &Out;
+  MarkableLLVMOsOstream &Out;
   clang::PrintingPolicy Policy;
   unsigned Indentation;
 
-  llvm::raw_ostream& Indent() { return Indent(Indentation); }
-  llvm::raw_ostream& Indent(unsigned Indentation) {
+  MarkableLLVMOsOstream& Indent() { return Indent(Indentation); }
+  MarkableLLVMOsOstream& Indent(unsigned Indentation) {
     for (unsigned i = 0; i != Indentation; ++i)
       Out << indent_str;
     return Out;
   }
 public:
-  typedef_printer(llvm::raw_ostream &Out, const clang::PrintingPolicy &Policy,
+  typedef_printer(MarkableLLVMOsOstream &Out, const clang::PrintingPolicy &Policy,
               const clang::ASTContext &, unsigned Indentation = 0)
       : Out(Out), Policy(Policy), Indentation(Indentation) {}
 
 
   void VisitTypedefDecl(clang::TypedefDecl* D) {
     if (D->getTypeSourceInfo()->getType().getTypePtr()->isUnionType()){
-      Out << "# union reference ignored\n";
+      Out.without_using() << "# union reference ignored\n";
       return;
     }
 
     if (D->getTypeSourceInfo()->getType()->isFunctionPointerType()){
-      Out << "# function pointer ignored\n";
+      Out.without_using() << "# function pointer ignored\n";
       return;
     }
 
@@ -192,12 +218,12 @@ public:
 
   void VisitRecordDecl(clang::RecordDecl *D) {
     if (D->isUnion()) {
-      Out << "# union declaration(" << D->getName() << ") ignored\n";
+      Out.without_using() << "# union declaration(" << D->getName() << ") ignored\n";
       return;
     }
     const std::regex pthread_detector(R"(.*pthread.*)");
     if(std::regex_match(D->getNameAsString(), pthread_detector)) {
-      Out << "# pthread-related type ignored\n";
+      Out.without_using() << "# pthread-related type ignored\n";
       return;
     }
 
@@ -227,19 +253,19 @@ public:
 
 
 class grouped_typedef_struct_printer : public clang::DeclVisitor<grouped_typedef_struct_printer>{
-  llvm::raw_ostream &Out;
+  MarkableLLVMOsOstream &Out;
   clang::PrintingPolicy Policy;
   unsigned Indentation;
 
-  llvm::raw_ostream& Indent() { return Indent(Indentation); }
-  llvm::raw_ostream& Indent(unsigned Indentation) {
+  MarkableLLVMOsOstream& Indent() { return Indent(Indentation); }
+  MarkableLLVMOsOstream& Indent(unsigned Indentation) {
     for (unsigned i = 0; i != Indentation; ++i)
       Out << indent_str;
     return Out;
   }
 
 public:
-  grouped_typedef_struct_printer(llvm::raw_ostream &Out, const clang::PrintingPolicy &Policy,
+  grouped_typedef_struct_printer(MarkableLLVMOsOstream &Out, const clang::PrintingPolicy &Policy,
       const clang::ASTContext &, unsigned Indentation = 0)
     : Out(Out), Policy(Policy), Indentation(Indentation) {
     }
@@ -248,7 +274,7 @@ public:
     const std::regex pthread_detector(R"(.*pthread.*)");
     if(std::regex_match(RD->getNameAsString(), pthread_detector)
         || std::regex_match(TDD->getNameAsString(), pthread_detector)) {
-      Out << "# pthread-related type ignored\n";
+      Out.without_using() << "# pthread-related type ignored\n";
       return;
     }
 
@@ -300,20 +326,20 @@ public:
 };
 
 class funcdecl_printer : public clang::DeclVisitor<funcdecl_printer>{
-  llvm::raw_ostream &Out;
+  MarkableLLVMOsOstream &Out;
   clang::PrintingPolicy Policy;
   const clang::ASTContext &Context;
   unsigned Indentation;
 
-  llvm::raw_ostream& Indent() { return Indent(Indentation); }
-  llvm::raw_ostream& Indent(unsigned Indentation) {
+  MarkableLLVMOsOstream& Indent() { return Indent(Indentation); }
+  MarkableLLVMOsOstream& Indent(unsigned Indentation) {
     for (unsigned i = 0; i != Indentation; ++i)
       Out << indent_str;
     return Out;
   }
 
 public:
-  funcdecl_printer(llvm::raw_ostream &Out, const clang::PrintingPolicy &Policy,
+  funcdecl_printer(MarkableLLVMOsOstream &Out, const clang::PrintingPolicy &Policy,
               const clang::ASTContext &Context, unsigned Indentation = 0)
       : Out(Out), Policy(Policy), Context(Context), Indentation(Indentation) {}
 
@@ -364,11 +390,12 @@ public:
       Proto += ")";
 
 
-      AFT->getReturnType().print(Out, Policy, Proto);
+      AFT->getReturnType().print(Out.without_using(), Policy, Proto);
       Proto.clear();
       Out << Proto;
     } else {
-      Ty.print(Out, Policy, Proto);
+      Ty.print(Out.without_using(), Policy, Proto);
+      Out.use();
     }
 
     Out << "\n";
@@ -378,20 +405,20 @@ public:
 
 
 class general_decl_visitor : public clang::DeclVisitor<general_decl_visitor>{
-  llvm::raw_ostream &Out;
+  MarkableLLVMOsOstream &Out;
   clang::PrintingPolicy Policy;
   const clang::ASTContext &Context;
   unsigned Indentation;
 
-  llvm::raw_ostream& Indent() { return Indent(Indentation); }
-  llvm::raw_ostream& Indent(unsigned Indentation) {
+  MarkableLLVMOsOstream& Indent() { return Indent(Indentation); }
+  MarkableLLVMOsOstream& Indent(unsigned Indentation) {
     for (unsigned i = 0; i != Indentation; ++i)
       Out << indent_str;
     return Out;
   }
 
 public:
-  general_decl_visitor(llvm::raw_ostream &Out, const clang::PrintingPolicy &Policy,
+  general_decl_visitor(MarkableLLVMOsOstream &Out, const clang::PrintingPolicy &Policy,
       const clang::ASTContext &Context, unsigned Indentation = 0)
     : Out(Out), Policy(Policy), Context(Context), Indentation(Indentation) { }
 
@@ -453,13 +480,11 @@ public:
       if (clang::isa<clang::FunctionDecl>(*D)){
         funcdecl_printer FuncDeclPrinter(func_decl_ostream, Policy, Context, func_decl_indentation);
         FuncDeclPrinter.Visit(clang::cast<clang::FunctionDecl>(*D));
-        func_decl_ostream.flush();
       }
 
       if (clang::isa<clang::TypedefDecl>(*D) || clang::isa<clang::RecordDecl>(*D)){
         typedef_printer TypedefPrinter(types_ostream, Policy, Context, types_indentation);
         TypedefPrinter.Visit(*D);
-        types_ostream.flush();
       }
 
     } // end of in-declcontext iteration
@@ -473,12 +498,11 @@ public:
 
   void ProcessDeclGroup(clang::SmallVectorImpl<clang::Decl*>& Decls) {
     this->Indent();
-    llvm::raw_os_ostream declgroup_ostream(types);
-    processTypedefStructDeclGroup(Decls.data(), Decls.size(), declgroup_ostream);
+    processTypedefStructDeclGroup(Decls.data(), Decls.size(), types_ostream);
     Decls.clear();
   }
 
-  void processTypedefStructDeclGroup(clang::Decl** Begin, unsigned NumDecls, llvm::raw_ostream &Out) {
+  void processTypedefStructDeclGroup(clang::Decl** Begin, unsigned NumDecls, MarkableLLVMOsOstream &Out) {
     if(NumDecls == 1) return;
 
     clang::TagDecl* TD = clang::dyn_cast<clang::TagDecl>(*Begin);
@@ -512,7 +536,7 @@ public:
             return;
           }
         case clang::TagTypeKind::TTK_Union :
-          Out << "# union declaration ignored\n";
+          Out.without_using() << "# union declaration ignored\n";
           return;
         default:
           return;
@@ -565,19 +589,32 @@ int main(int argc, const char** argv){
     // setup files and their indentations
     using namespace headercvt;
 
-    preprocessor_defines_ostream << "cdef extern from \"CL/cl.h\":\n";
+    preprocessor_defines_ostream.without_using() << "cdef extern from \"CL/cl.h\":\n";
     preprocessor_defines_indentation ++;
-    preprocessor_defines_ostream << indent_str << "cdef enum:\n";
+    preprocessor_defines_ostream.without_using() << indent_str << "cdef enum:\n";
     preprocessor_defines_indentation ++;
 
-    func_decl_ostream << "cdef extern from \"CL/cl.h\":\n";
+    func_decl_ostream.without_using() << "cdef extern from \"CL/cl.h\":\n";
     func_decl_indentation ++;
 
-    types_ostream << "cdef extern from \"CL/cl.h\":\n";
+    types_ostream.without_using() << "cdef extern from \"CL/cl.h\":\n";
     types_indentation ++;
   }
 
   auto const result_value = tool.run(clang::tooling::newFrontendActionFactory<headercvt::ast_frontend_action>().get());
+
+  {
+    using namespace headercvt;
+    if (preprocessor_defines_ostream.vacant()){
+      preprocessor_defines_ostream << indent_str << indent_str << "pass\n";
+    }
+    if (func_decl_ostream.vacant()){
+      func_decl_ostream << indent_str << "pass\n";
+    }
+    if (types_ostream.vacant()){
+      types_ostream << indent_str << "pass\n";
+    }
+  }
 
   headercvt::func_decl_ostream.flush();
   headercvt::types_ostream.flush();

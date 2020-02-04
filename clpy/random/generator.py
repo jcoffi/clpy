@@ -1,6 +1,6 @@
 import atexit
 import binascii
-# import functools
+import functools
 import operator
 import os
 import time
@@ -10,8 +10,8 @@ import six
 
 import clpy
 from clpy import backend
+import clpy.backend.opencl.random as clrand
 from clpy import core
-# from clpy.backend import curand
 
 
 class RandomState(object):
@@ -43,38 +43,23 @@ class RandomState(object):
     """
 
     def __init__(self, seed=None, method=None):
-        self.seed_value = seed
-        self.seed_array = None
+        if method is None:
+            method = clrand.CLPY_RNG_PSEUDO_DEFAULT
+        if method not in [
+            clrand.CLPY_RNG_PSEUDO_DEFAULT,
+            clrand.CLPY_RNG_XORWOW
+        ]:
+            raise NotImplementedError(
+                "ClPy supports no other methods than XORWOW."
+            )
+        self._generator = clrand.createGenerator()
+        self.seed(seed)
 
     def __del__(self):
-        # When createGenerator raises an error, _generator is not initialized
         pass
-        # if hasattr(self, '_generator'):
-        #     curand.destroyGenerator(self._generator)
 
     def set_stream(self, stream=None):
-        raise NotImplementedError
-        # if stream is None:
-        #     stream = backend.Stream()
-        # curand.setStream(self._generator, stream.ptr)
-
-    def _generate_normal(self, func, size, dtype, *args):
-        # curand functions below don't support odd size.
-        # * curand.generateNormal
-        # * curand.generateNormalDouble
-        # * curand.generateLogNormal
-        # * curand.generateLogNormalDouble
-        raise NotImplementedError
-        size = core.get_size(size)
-        element_size = six.moves.reduce(operator.mul, size, 1)
-        if element_size % 2 == 0:
-            out = clpy.empty(size, dtype=dtype)
-            func(self._generator, out.data.ptr, out.size, *args)
-            return out
-        else:
-            out = clpy.empty((element_size + 1,), dtype=dtype)
-            func(self._generator, out.data.ptr, out.size, *args)
-            return out[:element_size].reshape(size)
+        raise NotImplementedError("ClPy doesn't support streams yet.")
 
     # NumPy compatible functions
 
@@ -86,13 +71,12 @@ class RandomState(object):
             :meth:`numpy.random.RandomState.lognormal`
 
         """
-        raise NotImplementedError
-        # dtype = _check_and_get_dtype(dtype)
-        # if dtype.char == 'f':
-        #     func = curand.generateLogNormal
-        # else:
-        #     func = curand.generateLogNormalDouble
-        # return self._generate_normal(func, size, dtype, mean, sigma)
+        # Note(nsakabe-fixstars):
+        # https://github.com/numpy/numpy/blob/2a488fe76a0f732dc418d03b452caace161673da/numpy/random/src/distributions/distributions.c#L510
+        # says lognormal(mean, sigma) equals to exp(random_normal(mean, sigma))
+
+        return clpy.exp(
+            self.normal(loc=mean, scale=sigma, size=size, dtype=dtype))
 
     def normal(self, loc=0.0, scale=1.0, size=None, dtype=float):
         """Returns an array of normally distributed samples.
@@ -102,13 +86,13 @@ class RandomState(object):
             :meth:`numpy.random.RandomState.normal`
 
         """
-        raise NotImplementedError
-        # dtype = _check_and_get_dtype(dtype)
-        # if dtype.char == 'f':
-        #     func = curand.generateNormal
-        # else:
-        #     func = curand.generateNormalDouble
-        # return self._generate_normal(func, size, dtype, loc, scale)
+        dtype = _check_and_get_dtype(dtype)
+        out = clpy.empty(core.get_size(size), dtype=dtype)
+        if dtype.char == 'f':
+            clrand.generateNormal(self._generator, out, loc, scale)
+        else:
+            clrand.generateNormalDouble(self._generator, out, loc, scale)
+        return out
 
     def rand(self, *size, **kwarg):
         """Returns uniform random values over the interval ``[0, 1)``.
@@ -118,7 +102,6 @@ class RandomState(object):
             :meth:`numpy.random.RandomState.rand`
 
         """
-        raise NotImplementedError
         dtype = kwarg.pop('dtype', float)
         if kwarg:
             raise TypeError('rand() got unexpected keyword arguments %s'
@@ -133,7 +116,6 @@ class RandomState(object):
             :meth:`numpy.random.RandomState.randn`
 
         """
-        raise NotImplementedError
         dtype = kwarg.pop('dtype', float)
         if kwarg:
             raise TypeError('randn() got unexpected keyword arguments %s'
@@ -142,23 +124,6 @@ class RandomState(object):
 
     _1m_kernel = core.ElementwiseKernel(
         '', 'T x', 'x = 1 - x', 'clpy_random_1_minus_x')
-
-    _init_kernel = core.ElementwiseKernel(
-        'T seed', 'T x',
-        'x = seed + get_CArrayIndex_1(&x_info, &_ind);', 'clpy_seed_init'
-    )
-
-    _lcg_kernel = core.ElementwiseKernel(
-        '', 'T x, U out',
-        '''
-        __const__ T A = 1664525;
-        __const__ T C = 1013904223;
-        __const__ T M = 2147483647;
-        x = (x * A + C)&M;
-        out = (U)(x)/(U)(M);
-        ''',
-        'clpy_lcg_kernel'
-    )
 
     def random_sample(self, size=None, dtype=float):
         """Returns an array of random values over the interval ``[0, 1)``.
@@ -170,24 +135,12 @@ class RandomState(object):
         """
         dtype = _check_and_get_dtype(dtype)
         out = clpy.empty(size, dtype=dtype)
-        # 'size' is not a integer, but a tuple.
-        # To compute size of array, numpy.prod(size) is required
-        array_size = numpy.prod(size)
-
-        if (not isinstance(self.seed_array, clpy.ndarray)
-                or self.seed_array.size < array_size):
-            self.seed_array = clpy.empty(size, "uint")
-            tmp_seed_array = clpy.empty(size, "uint")
-            tmp_seed_array.fill(self.seed_value)
-            RandomState._init_kernel(tmp_seed_array, self.seed_array)
-            # not to use similar number for the first generation
-            RandomState._lcg_kernel(self.seed_array, out)
-            RandomState._lcg_kernel(self.seed_array, out)
+        if dtype.char == 'f':
+            func = clrand.generateUniform
         else:
-            tmp = self.seed_array.reshape(self.seed_array.size)[
-                0:array_size].reshape(size)
-            RandomState._lcg_kernel(tmp, out)
-
+            func = clrand.generateUniformDouble
+        func(self._generator, out)
+        RandomState._1m_kernel(out)
         return out
 
     def interval(self, mx, size):
@@ -209,58 +162,56 @@ class RandomState(object):
             If 0x80000000 :math:`\\leq` ``mx`` :math:`\\leq` 0xffffffff,
             a ``numpy.uint32`` array is returned.
         """
-        raise NotImplementedError
-        # if size is None:
-        #     return self.interval(mx, 1).reshape(())
-        # elif isinstance(size, int):
-        #     size = (size, )
+        if size is None:
+            return self.interval(mx, 1).reshape(())
+        elif isinstance(size, int):
+            size = (size, )
 
-        # if mx == 0:
-        #     return clpy.zeros(size, dtype=numpy.int32)
+        if mx == 0:
+            return clpy.zeros(size, dtype=numpy.int32)
 
-        # if mx < 0:
-        #     raise ValueError(
-        #         'mx must be non-negative (actual: {})'.format(mx))
-        # elif mx <= 0x7fffffff:
-        #     dtype = numpy.int32
-        # elif mx <= 0xffffffff:
-        #     dtype = numpy.uint32
-        # else:
-        #     raise ValueError(
-        #         'mx must be within uint32 range (actual: {})'.format(mx))
+        if mx < 0:
+            raise ValueError(
+                'mx must be non-negative (actual: {})'.format(mx))
+        elif mx <= 0x7fffffff:
+            dtype = numpy.int32
+        elif mx <= 0xffffffff:
+            dtype = numpy.uint32
+        else:
+            raise ValueError(
+                'mx must be within uint32 range (actual: {})'.format(mx))
 
-        # mask = (1 << mx.bit_length()) - 1
-        # mask = clpy.array(mask, dtype=dtype)
+        mask = (1 << mx.bit_length()) - 1
+        mask = clpy.array(mask, dtype=dtype)
 
-        # n = functools.reduce(operator.mul, size, 1)
+        n = functools.reduce(operator.mul, size, 1)
 
-        # sample = clpy.empty((n,), dtype=dtype)
-        # n_rem = n  # The number of remaining elements to sample
-        # ret = None
-        # while n_rem > 0:
-        #     curand.generate(
-        #         self._generator, sample.data.ptr, sample.size)
-        #     # Drop the samples that exceed the upper limit
-        #     sample &= mask
-        #     success = sample <= mx
+        sample = clpy.empty((n,), dtype=dtype)
+        n_rem = n  # The number of remaining elements to sample
+        ret = None
+        while n_rem > 0:
+            clrand.generate(self._generator, sample)
+            # Drop the samples that exceed the upper limit
+            sample &= mask
+            success = sample <= mx
 
-        #     if ret is None:
-        #         # If the sampling has finished in the first iteration,
-        #         # just return the sample.
-        #         if success.all():
-        #             n_rem = 0
-        #             ret = sample
-        #             break
+            if ret is None:
+                # If the sampling has finished in the first iteration,
+                # just return the sample.
+                if success.all():
+                    n_rem = 0
+                    ret = sample
+                    break
 
-        #         # Allocate the return array.
-        #         ret = clpy.empty((n,), dtype=dtype)
+                # Allocate the return array.
+                ret = clpy.empty((n,), dtype=dtype)
 
-        #     n_succ = min(n_rem, int(success.sum()))
-        #     ret[n - n_rem:n - n_rem + n_succ] = sample[success][:n_succ]
-        #     n_rem -= n_succ
+            n_succ = min(n_rem, int(success.sum()))
+            ret[n - n_rem:n - n_rem + n_succ] = sample[success][:n_succ]
+            n_rem -= n_succ
 
-        # assert n_rem == 0
-        # return ret.reshape(size)
+        assert n_rem == 0
+        return ret.reshape(size)
 
     def seed(self, seed=None):
         """Resets the state of the random number generator with a seed.
@@ -279,8 +230,7 @@ class RandomState(object):
         else:
             seed = numpy.asarray(seed).astype(numpy.uint64, casting='safe')
 
-        raise NotImplementedError
-        # curand.setPseudoRandomGeneratorSeed(self._generator, seed)
+        clrand.setPseudoRandomGeneratorSeed(self._generator, seed)
         # curand.setGeneratorOffset(self._generator, 0)
 
     def standard_normal(self, size=None, dtype=float):
@@ -291,7 +241,6 @@ class RandomState(object):
             :meth:`numpy.random.RandomState.standard_normal`
 
         """
-        raise NotImplementedError
         return self.normal(size=size, dtype=dtype)
 
     def uniform(self, low=0.0, high=1.0, size=None, dtype=float):
@@ -314,7 +263,6 @@ class RandomState(object):
             :meth:`numpy.random.choice`
 
         """
-        raise NotImplementedError
         if a is None:
             raise ValueError('a must be 1-dimensional or an integer')
         if isinstance(a, clpy.ndarray) and a.ndim == 0:
@@ -392,16 +340,15 @@ class RandomState(object):
             :meth:`numpy.random.shuffle`
 
         """
-        raise NotImplementedError
-        # if not isinstance(a, clpy.ndarray):
-        #     raise TypeError('The array must be clpy.ndarray')
+        if not isinstance(a, clpy.ndarray):
+            raise TypeError('The array must be clpy.ndarray')
 
-        # if a.ndim == 0:
-        #     raise TypeError('An array whose ndim is 0 is not supported')
+        if a.ndim == 0:
+            raise TypeError('An array whose ndim is 0 is not supported')
 
-        # sample = clpy.zeros((len(a)), dtype=numpy.int32)
-        # curand.generate(self._generator, sample.data.ptr, sample.size)
-        # a[:] = a[clpy.argsort(sample)]
+        sample = clpy.zeros((len(a)), dtype=numpy.int32)
+        clrand.generate(self._generator, sample)
+        a[:] = a[clpy.argsort(sample)]
 
 
 def seed(seed=None):
@@ -447,7 +394,9 @@ def get_random_state():
     dev = backend.Device()
     rs = _random_states.get(dev.id, None)
     if rs is None:
-        seed = int(time.mktime(time.localtime()))
+        seed = os.getenv('CLPY_SEED')
+        if seed is None:
+            seed = os.getenv('CHAINER_SEED')
         rs = RandomState(seed)
         rs = _random_states.setdefault(dev.id, rs)
     return rs

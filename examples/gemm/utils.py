@@ -1,6 +1,13 @@
 import clpy as cp
 
 
+import os
+
+
+def include_path():
+    return os.path.join(cp.__path__[0], "..", "clpy", "core", "include")
+
+
 @cp.util.memoize(for_each_device=True)
 def load_kernel(kernel_name, code, options=()):
     assert isinstance(options, tuple)
@@ -16,6 +23,8 @@ def read_code(code_filename, params):
     return code
 
 
+# TODO(shusukeueda):
+# ClPy does not support cp.backend.Event (clpy/backend/stream.py)
 def benchmark(func, args, n_run):
     times = []
     for _ in range(n_run):

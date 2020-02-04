@@ -95,6 +95,9 @@ cdef tuple _numpy_scalar_type = tuple([numpy.dtype(i).type
 cdef set _python_scalar_type_set = set(_python_scalar_type)
 cdef set _numpy_scalar_type_set = set(_numpy_scalar_type)
 
+cdef set numpy_scalar_type_set():
+    return _numpy_scalar_type_set
+
 cdef dict _kind_score = {
     'b': 0,
     'u': 1,

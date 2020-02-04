@@ -22,7 +22,7 @@ source venv/bin/activate
 
 # Install dependencies
 pip install -U pip
-pip install Cython pytest mock nose
+pip install 'Cython==0.29.10' 'pytest==4.3.0' 'mock==3.0.5' 'nose==1.3.7'
 
 # Ignore occurred errors below
 set +e
@@ -52,6 +52,8 @@ tests/clpy_tests/prof_tests/
 tests/clpy_tests/statics_tests/
 tests/clpy_tests/math_tests/
 tests/clpy_tests/logic_tests/
+tests/clpy_tests/random_tests/
+tests/example_tests/
 "
 
 TEST_DIRS_IN_ROOT_DIR="
@@ -60,12 +62,9 @@ tests/install_tests/
 
 TEST_FILES="
 tests/clpy_tests/linalg_tests/test_product.py
-tests/clpy_tests/random_tests/test_distributions.py
 tests/clpy_tests/sorting_tests/test_count.py
 tests/clpy_tests/sorting_tests/test_search.py
 tests/clpy_tests/sorting_tests/test_sort.py::TestSort
-tests/example_tests/test_gmm.py
-tests/example_tests/test_kmeans.py
 "
 
 export CLPY_TEST_GPU_LIMIT=1

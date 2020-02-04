@@ -836,46 +836,51 @@ cdef class ndarray:
 
         """
 
+        # TODO(nsakabe-fixstars): Implement argsort
+        np_a = clpy.asnumpy(self)
+        argsorted = numpy.argsort(np_a, axis=axis)
+        return clpy.array(argsorted)
+
         # TODO(takagi): Support kind argument.
 
-        cdef Py_ssize_t ndim = self.ndim
+        # cdef Py_ssize_t ndim = self.ndim
 
-        raise NotImplementedError("clpy does not support this")
+        # raise NotImplementedError("clpy does not support this")
 
-        if ndim == 0:
-            raise ValueError('Sorting arrays with the rank of zero is not '
-                             'supported')  # as numpy.argsort() raises
+        # if ndim == 0:
+        #     raise ValueError('Sorting arrays with the rank of zero is not '
+        #                      'supported')  # as numpy.argsort() raises
 
-        if axis is None:
-            data = self.reshape(self.size)
-            axis = -1
-        else:
-            data = self
+        # if axis is None:
+        #     data = self.reshape(self.size)
+        #     axis = -1
+        # else:
+        #     data = self
 
-        if axis < 0:
-            axis += ndim
-        if not (0 <= axis < ndim):
-            raise _AxisError('Axis out of range')
+        # if axis < 0:
+        #     axis += ndim
+        # if not (0 <= axis < ndim):
+        #     raise _AxisError('Axis out of range')
 
-        if axis == ndim - 1:
-            data = data.copy()
-        else:
-            data = clpy.rollaxis(data, axis, ndim).copy()
+        # if axis == ndim - 1:
+        #     data = data.copy()
+        # else:
+        #     data = clpy.rollaxis(data, axis, ndim).copy()
 
-        idx_array = ndarray(data.shape, dtype=numpy.intp)
+        # idx_array = ndarray(data.shape, dtype=numpy.intp)
 
-        if ndim == 1:
-            thrust.argsort(self.dtype, idx_array.data.ptr, data.data.ptr, 0,
-                           data._shape)
-        else:
-            keys_array = ndarray(data._shape, dtype=numpy.intp)
-            thrust.argsort(self.dtype, idx_array.data.ptr, data.data.ptr,
-                           keys_array.data.ptr, data._shape)
+        # if ndim == 1:
+        #     thrust.argsort(self.dtype, idx_array.data.ptr, data.data.ptr, 0,
+        #                    data._shape)
+        # else:
+        #     keys_array = ndarray(data._shape, dtype=numpy.intp)
+        #     thrust.argsort(self.dtype, idx_array.data.ptr, data.data.ptr,
+        #                    keys_array.data.ptr, data._shape)
 
-        if axis == ndim - 1:
-            return idx_array
-        else:
-            return clpy.rollaxis(idx_array, -1, axis)
+        # if axis == ndim - 1:
+        #     return idx_array
+        # else:
+        #     return clpy.rollaxis(idx_array, -1, axis)
 
     def partition(self, kth, axis=-1):
         """Partially sorts an array.

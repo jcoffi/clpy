@@ -1,4 +1,4 @@
-# from clpy.backend import runtime
+from clpy.backend.opencl import utility
 
 
 class Event(object):
@@ -23,9 +23,11 @@ class Event(object):
     """
 
     def __init__(self, block=False, disable_timing=False, interprocess=False):
-        self.ptr = 0
-        raise NotImplementedError("clpy does not supoort this")
+        self.time = 0
 
+        # TODO(shusukeueda): CUDA event flags
+        #
+        # self.ptr = 0
         # if interprocess and not disable_timing:
         #     raise ValueError(
         #         'Timing must be disabled for interprocess events')
@@ -33,11 +35,6 @@ class Event(object):
         #         (disable_timing and runtime.eventDisableTiming) |
         #         (interprocess and runtime.eventInterprocess))
         # self.ptr = runtime.eventCreateWithFlags(flag)
-
-    def __del__(self):
-        if self.ptr:
-            raise NotImplementedError("clpy does not supoort this")
-            # runtime.eventDestroy(self.ptr)
 
     @property
     def done(self):
@@ -55,10 +52,10 @@ class Event(object):
         .. seealso:: :meth:`clpy.cuda.Stream.record`
 
         """
-        if stream is None:
-            stream = Stream.null
-        raise NotImplementedError("clpy does not supoort this")
-        # runtime.eventRecord(self.ptr, stream.ptr)
+        # TODO(shusukeueda): specify command queue (CUDA stream)
+        # if stream is None:
+        #     stream = Stream.null
+        self.time = utility.eventRecord()
 
     def synchronize(self):
         """Synchronizes all device work to the event.
@@ -67,8 +64,7 @@ class Event(object):
         thread until the event is done.
 
         """
-        raise NotImplementedError("clpy does not supoort this")
-        # runtime.eventSynchronize(self.ptr)
+        utility.eventSynchronize()
 
 
 def get_elapsed_time(start_event, end_event):
@@ -82,8 +78,7 @@ def get_elapsed_time(start_event, end_event):
         float: Elapsed time in milliseconds.
 
     """
-    raise NotImplementedError("clpy does not supoort this")
-    # return runtime.eventElapsedTime(start_event.ptr, end_event.ptr)
+    return (end_event.time - start_event.time) / 1e6  # miliseconds
 
 
 class Stream(object):

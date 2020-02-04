@@ -9,7 +9,7 @@ import six
 
 import clpy
 from clpy import backend
-from clpy.backend import curand
+import clpy.backend.opencl.random as clrand
 from clpy import core
 from clpy.random import generator
 from clpy import testing
@@ -24,10 +24,10 @@ class FunctionSwitcher(object):
         self.func_name = f.__name__
 
     def __enter__(self):
-        setattr(curand, self.func_name, mock.Mock())
+        setattr(clrand, self.func_name, mock.Mock())
 
     def __exit__(self, *_):
-        setattr(curand, self.func_name, self.tmp)
+        setattr(clrand, self.func_name, self.tmp)
 
 
 @testing.fix_random()
@@ -42,15 +42,16 @@ class TestRandomState(unittest.TestCase):
     def setUp(self):
         self.rs = generator.RandomState(seed=testing.generate_seed())
 
-    def check_lognormal(self, curand_func, dtype):
+    """
+    def check_lognormal(self, clrand_func, dtype):
         shape = core.get_size(self.size)
         exp_size = six.moves.reduce(operator.mul, shape, 1)
         if exp_size % 2 == 1:
             exp_size += 1
 
-        curand_func.return_value = clpy.zeros(exp_size, dtype=dtype)
+        clrand_func.return_value = clpy.zeros(exp_size, dtype=dtype)
         out = self.rs.lognormal(self.args[0], self.args[1], self.size, dtype)
-        gen, _, size, mean, sigma = curand_func.call_args[0]
+        gen, _, mean, sigma = clrand_func.call_args[0]
         self.assertIs(gen, self.rs._generator)
         self.assertEqual(size, exp_size)
         self.assertIs(mean, self.args[0])
@@ -58,57 +59,56 @@ class TestRandomState(unittest.TestCase):
         self.assertEqual(out.shape, shape)
 
     def test_lognormal_float(self):
-        with FunctionSwitcher(curand.generateLogNormalDouble):
-            self.check_lognormal(curand.generateLogNormalDouble, float)
+        with FunctionSwitcher(clrand.generateLogNormalDouble):
+            self.check_lognormal(clrand.generateLogNormalDouble, float)
 
     def test_lognormal_float32(self):
-        with FunctionSwitcher(curand.generateLogNormal):
-            self.check_lognormal(curand.generateLogNormal, numpy.float32)
+        with FunctionSwitcher(clrand.generateLogNormal):
+            self.check_lognormal(clrand.generateLogNormal, numpy.float32)
 
     def test_lognormal_float64(self):
-        with FunctionSwitcher(curand.generateLogNormalDouble):
-            self.check_lognormal(curand.generateLogNormalDouble, numpy.float64)
+        with FunctionSwitcher(clrand.generateLogNormalDouble):
+            self.check_lognormal(clrand.generateLogNormalDouble, numpy.float64)
+    """
 
-    def check_normal(self, curand_func, dtype):
+    def check_normal(self, clrand_func, dtype):
         shape = core.get_size(self.size)
         exp_size = six.moves.reduce(operator.mul, shape, 1)
         if exp_size % 2 == 1:
             exp_size += 1
 
-        curand_func.return_value = clpy.zeros(exp_size, dtype=dtype)
+        clrand_func.return_value = clpy.zeros(exp_size, dtype=dtype)
         out = self.rs.normal(self.args[0], self.args[1], self.size, dtype)
-        gen, _, size, loc, scale = curand_func.call_args[0]
+        gen, _, loc, scale = clrand_func.call_args[0]
         self.assertIs(gen, self.rs._generator)
-        self.assertEqual(size, exp_size)
         self.assertIs(loc, self.args[0])
         self.assertIs(scale, self.args[1])
         self.assertEqual(out.shape, shape)
 
     def test_normal_float32(self):
-        with FunctionSwitcher(curand.generateNormal):
-            self.check_normal(curand.generateNormal, numpy.float32)
+        with FunctionSwitcher(clrand.generateNormal):
+            self.check_normal(clrand.generateNormal, numpy.float32)
 
     def test_normal_float64(self):
-        with FunctionSwitcher(curand.generateNormalDouble):
-            self.check_normal(curand.generateNormalDouble, numpy.float64)
+        with FunctionSwitcher(clrand.generateNormalDouble):
+            self.check_normal(clrand.generateNormalDouble, numpy.float64)
 
-    def check_random_sample(self, curand_func, dtype):
+    def check_random_sample(self, clrand_func, dtype):
         out = self.rs.random_sample(self.size, dtype)
-        curand_func.assert_called_once_with(
-            self.rs._generator, out.data.ptr, out.size)
+        clrand_func.assert_called_once_with(self.rs._generator, out)
 
     def test_random_sample_float32(self):
-        with FunctionSwitcher(curand.generateUniform):
-            self.check_random_sample(curand.generateUniform, numpy.float32)
+        with FunctionSwitcher(clrand.generateUniform):
+            self.check_random_sample(clrand.generateUniform, numpy.float32)
 
     def test_random_sample_float64(self):
-        with FunctionSwitcher(curand.generateUniformDouble):
+        with FunctionSwitcher(clrand.generateUniformDouble):
             self.check_random_sample(
-                curand.generateUniformDouble, numpy.float64)
+                clrand.generateUniformDouble, numpy.float64)
 
-    def check_seed(self, curand_func, seed):
+    def check_seed(self, clrand_func, seed):
         self.rs.seed(seed)
-        call_args_list = curand_func.call_args_list
+        call_args_list = clrand_func.call_args_list
         self.assertEqual(1, len(call_args_list))
         call_args = call_args_list[0][0]
         self.assertEqual(2, len(call_args))
@@ -116,25 +116,25 @@ class TestRandomState(unittest.TestCase):
         self.assertEqual(numpy.uint64, call_args[1].dtype)
 
     def test_seed_none(self):
-        with FunctionSwitcher(curand.setPseudoRandomGeneratorSeed):
-            self.check_seed(curand.setPseudoRandomGeneratorSeed, None)
+        with FunctionSwitcher(clrand.setPseudoRandomGeneratorSeed):
+            self.check_seed(clrand.setPseudoRandomGeneratorSeed, None)
 
     @testing.for_int_dtypes()
     def test_seed_not_none(self, dtype):
-        with FunctionSwitcher(curand.setPseudoRandomGeneratorSeed):
-            self.check_seed(curand.setPseudoRandomGeneratorSeed, dtype(0))
+        with FunctionSwitcher(clrand.setPseudoRandomGeneratorSeed):
+            self.check_seed(clrand.setPseudoRandomGeneratorSeed, dtype(0))
 
     @testing.for_dtypes([numpy.complex_])
     def test_seed_invalid_type_complex(self, dtype):
         with self.assertRaises(TypeError):
-            with FunctionSwitcher(curand.setPseudoRandomGeneratorSeed):
-                self.check_seed(curand.setPseudoRandomGeneratorSeed, dtype(0))
+            with FunctionSwitcher(clrand.setPseudoRandomGeneratorSeed):
+                self.check_seed(clrand.setPseudoRandomGeneratorSeed, dtype(0))
 
     @testing.for_float_dtypes()
     def test_seed_invalid_type_float(self, dtype):
         with self.assertRaises(TypeError):
-            with FunctionSwitcher(curand.setPseudoRandomGeneratorSeed):
-                self.check_seed(curand.setPseudoRandomGeneratorSeed, dtype(0))
+            with FunctionSwitcher(clrand.setPseudoRandomGeneratorSeed):
+                self.check_seed(clrand.setPseudoRandomGeneratorSeed, dtype(0))
 
 
 @testing.gpu
@@ -555,41 +555,41 @@ class TestGetRandomState2(unittest.TestCase):
         generator.RandomState = mock.Mock()
         self.rs_dict = generator._random_states
         generator._random_states = {}
-        self.clpy_seed = os.getenv('CUPY_SEED')
+        self.clpy_seed = os.getenv('CLPY_SEED')
         self.chainer_seed = os.getenv('CHAINER_SEED')
 
     def tearDown(self, *args):
         generator.RandomState = self.rs_tmp
         generator._random_states = self.rs_dict
         if self.clpy_seed is None:
-            os.environ.pop('CUPY_SEED', None)
+            os.environ.pop('CLPY_SEED', None)
         else:
-            os.environ['CUPY_SEED'] = self.clpy_seed
+            os.environ['CLPY_SEED'] = self.clpy_seed
         if self.chainer_seed is None:
             os.environ.pop('CHAINER_SEED', None)
         else:
             os.environ['CHAINER_SEED'] = self.chainer_seed
 
     def test_get_random_state_no_clpy_no_chainer_seed(self):
-        os.environ.pop('CUPY_SEED', None)
+        os.environ.pop('CLPY_SEED', None)
         os.environ.pop('CHAINER_SEED', None)
         generator.get_random_state()
         generator.RandomState.assert_called_with(None)
 
     def test_get_random_state_no_clpy_with_chainer_seed(self):
-        os.environ.pop('CUPY_SEED', None)
+        os.environ.pop('CLPY_SEED', None)
         os.environ['CHAINER_SEED'] = '5'
         generator.get_random_state()
         generator.RandomState.assert_called_with('5')
 
     def test_get_random_state_with_clpy_no_chainer_seed(self):
-        os.environ['CUPY_SEED'] = '6'
+        os.environ['CLPY_SEED'] = '6'
         os.environ.pop('CHAINER_SEED', None)
         generator.get_random_state()
         generator.RandomState.assert_called_with('6')
 
     def test_get_random_state_with_clpy_with_chainer_seed(self):
-        os.environ['CUPY_SEED'] = '7'
+        os.environ['CLPY_SEED'] = '7'
         os.environ['CHAINER_SEED'] = '8'
         generator.get_random_state()
         generator.RandomState.assert_called_with('7')
