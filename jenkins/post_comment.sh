@@ -36,4 +36,4 @@ echo "${BODY}" |
     \"body\": . ,
     \"event\": \"${EVENT}\"
   }" |
-  curl -XPOST "https://api.github.com/repos/fixstars/clpy/pulls/${ghprbPullId}/reviews?access_token=${access_token}" -d @- 
+  curl -u jenkins-maekawa:${access_token} -XPOST "https://api.github.com/repos/fixstars/clpy/pulls/${ghprbPullId}/reviews" -d @-
