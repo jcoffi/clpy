@@ -231,6 +231,10 @@ class TestIgnoreOfNegativeValueDifferenceOnCpuAndGpu(unittest.TestCase):
             return xp.array(-2, dtype=numpy.float32)
 
     def test_correct_failure(self):
+        # TODO(vorj): remove these warning suppressings
+        #             when we will support numpy >= 1.15.0
+        import warnings
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
         numpy.testing.assert_raises_regex(
             AssertionError, 'mismatch 100.0%', self.correct_failure)
 
