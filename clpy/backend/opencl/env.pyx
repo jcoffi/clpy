@@ -98,7 +98,7 @@ cdef cl_bool check_device_extension(cl_device_id device,
         extensions_buffer.data[:param_value_size]\
         .decode(locale.getpreferredencoding())
 
-    return CL_TRUE if extension in extensions else CL_FALSE
+    return CL_TRUE if extension in extensions.split() else CL_FALSE
 
 
 ##########################################
