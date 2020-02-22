@@ -10,21 +10,22 @@ import unittest
 class TestUltimaHalfTrick(unittest.TestCase):
 
     def test_type_half(self):
-        x = '''
+        x = clpy.backend.ultima.exec_ultima('', '#include <cupy/carray.hpp>') + ('''
 __clpy__half f() 
 {
-    __clpy__half a;
-    return (__clpy__half)(42.F);
+    __clpy__half a;constructor___clpy__half___left_paren____clpy__half_float__right_paren__(&a, 42.F);
+    return a;
 }
-'''
+''')[1:]
         y = clpy.backend.ultima.exec_ultima(
             '''
             half f(){
-              half a;
-              return static_cast<half>(42.f);
+              half a = 42.f;
+              return a;
             }
-            ''')
-        self.assertEqual(x[1:], y)
+            ''',
+            '#include <cupy/carray.hpp>')
+        self.assertEqual(x, y)
 
     def test_variable_named_half(self):
         x = '''
@@ -54,21 +55,20 @@ void f(int __clpy__half)
         self.assertEqual(x[1:], y)
 
     def test_clpy_half(self):
-        x = '''
+        x = clpy.backend.ultima.exec_ultima('', '#include <cupy/carray.hpp>') + ('''
 void f() 
 {
-    __clpy__half half_ = 42.F;
-    int __clpy__half = half_;
+    int __clpy__half = 42;
 }
-'''
+''')[1:]
         y = clpy.backend.ultima.exec_ultima(
             '''
             void f(){
-              __clpy__half half_ = 42.f;
-              int __clpy__half = half_;
+              int __clpy__half = 42;
             }
-            ''')
-        self.assertEqual(x[1:], y)
+            ''',
+            '#include <cupy/carray.hpp>')
+        self.assertEqual(x, y)
 
 
 if __name__ == "__main__":
