@@ -3,6 +3,7 @@
 
 import numpy
 import six
+import time
 
 cimport cpython
 from libcpp cimport vector
@@ -54,8 +55,17 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel, global_work_size,
     cdef _CArray arrayInfo  # to keep lifetime until SetKernelArg
     cdef size_t ptr = 0
     cdef size_t buffer_object = 0
+
+    ndarray_time = 0.0
+    indexer_time = 0.0
+    imm_time = 0.0
+
+    size_compute_time = 0.0
+
     for a in args:
         if isinstance(a, core.ndarray):
+            time_start = time.perf_counter()
+
             buffer_object = a.data.buf.get()
             clpy.backend.opencl.api.SetKernelArg(kernel, i, sizeof(void*),
                                                  <void*>&buffer_object)
@@ -71,6 +81,10 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel, global_work_size,
                 arrayInfo.shape_and_index[d + ndim] = a.strides[d]
             arrayInfo.offset = a.data.cl_mem_offset()
             arrayInfo.size = a.size
+
+            time_end = time.perf_counter()
+            ndarray_time += time_end - time_start
+
             clpy.backend.opencl.api.SetKernelArg(
                 kernel, i, cython.sizeof(Py_ssize_t)*(1+1+2*ndim),
                 <void*>&arrayInfo)
@@ -79,12 +93,19 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel, global_work_size,
                                                                 local_mem)
         else:
             if isinstance(a, core.Indexer):
+                time_start = time.perf_counter()
+
                 for d in range(a.ndim):
                     indexer.shape_and_index[d] = a.shape[d]
                 ptr = <size_t>&indexer
                 indexer.size = a.size
                 size = a.get_size()
+
+                time_end = time.perf_counter()
+                indexer_time += time_end - time_start
             else:
+                time_start = time.perf_counter()
+
                 if isinstance(a, clpy.core.core.Size_t):
                     if clpy.backend.opencl.utility.typeof_size() \
                             == 'uint':
@@ -106,9 +127,13 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel, global_work_size,
                     size = a.nbytes
                 else:
                     raise TypeError('Unsupported type %s' % type(a))
+
+                time_end = time.perf_counter()
+                imm_time += time_end - time_start
             clpy.backend.opencl.api.SetKernelArg(kernel, i, size, <void*>ptr)
         i+=1
 
+    time_start = time.perf_counter()
     cdef size_t gws[3]
     for i in range(global_dim):
         gws[i] = global_work_size[i]
@@ -121,6 +146,9 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel, global_work_size,
         lws_ptr = &lws[0]
     else:
         lws_ptr = <size_t*>NULL
+    time_end = time.perf_counter()
+
+    size_compute_time += time_end - time_start
 
     command_queue = clpy.backend.opencl.env.get_command_queue()
     clpy.backend.opencl.api.EnqueueNDRangeKernel(
@@ -131,6 +159,8 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel, global_work_size,
         global_work_size=&gws[0],
         local_work_size=lws_ptr)
     clpy.backend.opencl.api.Finish(command_queue)
+
+    print(",".join([str(ndarray_time), str(indexer_time), str(imm_time), str(size_compute_time)]))
 
 
 cdef class Function:
