@@ -67,7 +67,7 @@ In addition, add the needed ldconfig files to `/etc/ldconf.so.d/`, then execute 
 The current ClPy version requires LLVM/Clang 4, 5, 6, 7, 8, or 9.
 We **strongly** recommend building and installing LLVM/Clang from source.
 However, at least in Ubuntu 16.04, you can use LLVM/Clang as provided by the Ubuntu official package repository.
-In that case, you will need to set `PATH` and `CPLUS_INCLUDE_PATH` environment variables as shown below.
+In that case, you will need to set some environment variables as shown below.
 
 ```console
 # apt install clang-6.0 libclang-6.0-dev
