@@ -1,4 +1,3 @@
-# cython: profile=True
 
 cpdef clGetErrorName(cl_int status):
     if status in __OPENCL_ERROR_CODE:

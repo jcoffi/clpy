@@ -1,4 +1,3 @@
-# cython: profile=True
 import env
 import os
 import re

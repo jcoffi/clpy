@@ -1,4 +1,3 @@
-# cython: profile=True
 import clpy
 from clpy.core.core cimport ndarray
 import numpy

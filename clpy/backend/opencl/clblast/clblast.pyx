@@ -1,4 +1,3 @@
-# cython: profile=True
 cimport clpy.backend.opencl.api as api
 import clpy.backend.opencl.env
 cimport clpy.backend.opencl.env

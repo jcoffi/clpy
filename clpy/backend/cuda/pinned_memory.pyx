@@ -1,4 +1,3 @@
-# cython: profile=True
 # distutils: language = c++
 
 import collections

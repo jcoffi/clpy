@@ -1,4 +1,3 @@
-# cython: profile=True
 """Thin wrapper of CUSOLVER."""
 cimport cython
 
