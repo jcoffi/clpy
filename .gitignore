@@ -17,5 +17,3 @@ clpy.egg-info/
 dist/
 htmlcov/
 .idea/
-!ultima/ultima.cpp
-ultima/ultima
