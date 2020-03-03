@@ -14,6 +14,20 @@ import clpy.backend.opencl.random as clrand
 from clpy import core
 
 
+_gumbel_kernel = None
+
+
+def _get_gumbel_kernel():
+    global _gumbel_kernel
+    if _gumbel_kernel is None:
+        _gumbel_kernel = core.ElementwiseKernel(
+            'T x, T loc, T scale', 'T y',
+            'y = loc - log(-log(1 - x)) * scale',
+            'gumbel_kernel'
+        )
+    return _gumbel_kernel
+
+
 class RandomState(object):
 
     """Portable container of a pseudo-random number generator.
@@ -315,12 +329,12 @@ class RandomState(object):
         if p is not None:
             p = clpy.broadcast_to(p, (size, a_size))
             index = clpy.argmax(clpy.log(p) +
-                                clpy.random.gumbel(size=(size, a_size)),
+                                self.gumbel(size=(size, a_size)),
                                 axis=1)
             if not isinstance(shape, six.integer_types):
                 index = clpy.reshape(index, shape)
         else:
-            index = clpy.random.randint(0, a_size, size=shape)
+            index = self.randint(0, a_size, size=shape)
             # Align the dtype with NumPy
             index = index.astype(clpy.int64, copy=False)
 
@@ -350,6 +364,51 @@ class RandomState(object):
         clrand.generate(self._generator, sample)
         a[:] = a[clpy.argsort(sample)]
 
+    def gumbel(self, loc=0.0, scale=1.0, size=None, dtype=float):
+        """Returns an array of samples drawn from a Gumbel distribution.
+
+        .. seealso::
+            :func:`clpy.random.gumbel` for full documentation,
+            :meth:`numpy.random.RandomState.gumbel`
+        """
+        x = self.uniform(size=size, dtype=dtype)
+        # We use `1 - x` as input of `log` method to prevent overflow.
+        # It obeys numpy implementation.
+        _get_gumbel_kernel()(x, loc, scale, x)
+        return x
+
+    def randint(self, low, high=None, size=None, dtype='l'):
+        """Returns a scalar or an array of integer values over ``[low, high)``.
+
+        .. seealso::
+            :func:`clpy.random.randint` for full documentation,
+            :meth:`numpy.random.RandomState.randint`
+        """
+        if high is None:
+            lo = 0
+            hi = low
+        else:
+            lo = low
+            hi = high
+
+        if lo >= hi:
+            raise ValueError('low >= high')
+        if lo < clpy.iinfo(dtype).min:
+            raise ValueError(
+                'low is out of bounds for {}'.format(clpy.dtype(dtype).name))
+        if hi > clpy.iinfo(dtype).max + 1:
+            raise ValueError(
+                'high is out of bounds for {}'.format(clpy.dtype(dtype).name))
+
+        diff = hi - lo - 1
+        if diff > clpy.iinfo(clpy.int32).max - clpy.iinfo(clpy.int32).min + 1:
+            raise NotImplementedError(
+                'Sampling from a range whose extent is larger than int32 '
+                'range is currently not supported')
+        x = self.interval(diff, size).astype(dtype, copy=False)
+        clpy.add(x, lo, out=x)
+        return x
+
 
 def seed(seed=None):
     """Resets the state of the random number generator with a seed.
@@ -368,7 +427,7 @@ def seed(seed=None):
     get_random_state().seed(seed)
 
 
-# CuPy specific functions
+# ClPy specific functions
 
 _random_states = {}
 

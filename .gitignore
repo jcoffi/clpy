@@ -19,3 +19,4 @@ htmlcov/
 .idea/
 !ultima/ultima.cpp
 ultima/ultima
+.cache/

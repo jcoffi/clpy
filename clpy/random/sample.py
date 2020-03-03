@@ -1,6 +1,5 @@
 import six
 
-import clpy
 from clpy import core
 from clpy.creation import basic
 from clpy.random import distributions
@@ -81,31 +80,8 @@ def randint(low, high=None, size=None, dtype='l'):
         If size is integer, it is the 1D-array of length ``size`` element.
         Otherwise, it is the array whose shape specified by ``size``.
     """
-    if high is None:
-        lo = 0
-        hi = low
-    else:
-        lo = low
-        hi = high
-
-    if lo >= hi:
-        raise ValueError('low >= high')
-    if lo < clpy.iinfo(dtype).min:
-        raise ValueError(
-            'low is out of bounds for {}'.format(clpy.dtype(dtype).name))
-    if hi > clpy.iinfo(dtype).max + 1:
-        raise ValueError(
-            'high is out of bounds for {}'.format(clpy.dtype(dtype).name))
-
-    diff = hi - lo - 1
-    if diff > clpy.iinfo(clpy.int32).max - clpy.iinfo(clpy.int32).min + 1:
-        raise NotImplementedError(
-            'Sampling from a range whose extent is larger than int32 range is '
-            'currently not supported')
     rs = generator.get_random_state()
-    x = rs.interval(diff, size).astype(dtype, copy=False)
-    clpy.add(x, lo, out=x)
-    return x
+    return rs.randint(low, high, size, dtype)
 
 
 def random_integers(low, high=None, size=None):

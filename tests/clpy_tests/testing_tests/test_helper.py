@@ -32,56 +32,122 @@ class TestContainsSignedAndUnsigned(unittest.TestCase):
 
 class TestCheckCupyNumpyError(unittest.TestCase):
 
+    tbs = {
+        clpy: 'xxxx',
+        numpy: 'yyyy'
+    }
+
     def test_both_success(self):
+        @testing.helper.numpy_clpy_raises()
+        def dummy_both_success(self, xp):
+            pass
+
         with self.assertRaises(AssertionError):
-            helper._check_clpy_numpy_error(self, None, None, None, None)
+            dummy_both_success(self)
 
     def test_clpy_error(self):
-        clpy_error = Exception()
-        clpy_tb = 'xxxx'
-        with six.assertRaisesRegex(self, AssertionError, clpy_tb):
-            helper._check_clpy_numpy_error(self, clpy_error, clpy_tb,
-                                           None, None)
+        @testing.helper.numpy_clpy_raises()
+        def dummy_clpy_error(self, xp):
+            if xp is clpy:
+                raise Exception(self.tbs.get(clpy))
+
+        with six.assertRaisesRegex(self, AssertionError, self.tbs.get(clpy)):
+            dummy_clpy_error(self)
 
     def test_numpy_error(self):
-        numpy_error = Exception()
-        numpy_tb = 'yyyy'
-        with six.assertRaisesRegex(self, AssertionError, numpy_tb):
-            helper._check_clpy_numpy_error(self, None, None,
-                                           numpy_error, numpy_tb)
+        @testing.helper.numpy_clpy_raises()
+        def dummy_numpy_error(self, xp):
+            if xp is numpy:
+                raise Exception(self.tbs.get(numpy))
+
+        with six.assertRaisesRegex(self, AssertionError, self.tbs.get(numpy)):
+            dummy_numpy_error(self)
 
     def test_clpy_numpy_different_error(self):
-        clpy_error = TypeError()
-        clpy_tb = 'xxxx'
-        numpy_error = ValueError()
-        numpy_tb = 'yyyy'
+        @testing.helper.numpy_clpy_raises()
+        def dummy_clpy_numpy_different_error(self, xp):
+            if xp is clpy:
+                raise TypeError(self.tbs.get(clpy))
+            elif xp is numpy:
+                raise ValueError(self.tbs.get(numpy))
+
         # Use re.S mode to ignore new line characters
-        pattern = re.compile(clpy_tb + '.*' + numpy_tb, re.S)
+        pattern = re.compile(
+            self.tbs.get(clpy) + '.*' + self.tbs.get(numpy), re.S)
         with six.assertRaisesRegex(self, AssertionError, pattern):
-            helper._check_clpy_numpy_error(self, clpy_error, clpy_tb,
-                                           numpy_error, numpy_tb)
+            dummy_clpy_numpy_different_error(self)
+
+    def test_clpy_derived_error(self):
+        @testing.helper.numpy_clpy_raises()
+        def dummy_clpy_derived_error(self, xp):
+            if xp is clpy:
+                raise ValueError(self.tbs.get(clpy))
+            elif xp is numpy:
+                raise Exception(self.tbs.get(numpy))
+
+        dummy_clpy_derived_error(self)  # Assert no exceptions
+
+    def test_numpy_derived_error(self):
+        @testing.helper.numpy_clpy_raises()
+        def dummy_numpy_derived_error(self, xp):
+            if xp is clpy:
+                raise Exception(self.tbs.get(clpy))
+            elif xp is numpy:
+                raise IndexError(self.tbs.get(numpy))
+
+        # NumPy errors may not derive from CuPy errors, i.e. CuPy errors should
+        # be at least as explicit as the NumPy error
+        pattern = re.compile(
+            self.tbs.get(clpy) + '.*' + self.tbs.get(numpy), re.S)
+        with six.assertRaisesRegex(self, AssertionError, pattern):
+            dummy_numpy_derived_error(self)
 
     def test_same_error(self):
-        clpy_error = Exception()
-        clpy_tb = 'xxxx'
-        numpy_error = Exception()
-        numpy_tb = 'yyyy'
-        # Nothing happens
-        helper._check_clpy_numpy_error(self, clpy_error, clpy_tb,
-                                       numpy_error, numpy_tb,
-                                       accept_error=Exception)
+        @testing.helper.numpy_clpy_raises(accept_error=Exception)
+        def dummy_same_error(self, xp):
+            raise Exception(self.tbs.get(xp))
+
+        dummy_same_error(self)
+
+    def test_clpy_derived_unaccept_error(self):
+        @testing.helper.numpy_clpy_raises(accept_error=ValueError)
+        def dummy_clpy_derived_unaccept_error(self, xp):
+            if xp is clpy:
+                raise IndexError(self.tbs.get(clpy))
+            elif xp is numpy:
+                raise Exception(self.tbs.get(numpy))
+
+        # Neither `IndexError` nor `Exception` is derived from `ValueError`,
+        # therefore expect an error
+        pattern = re.compile(
+            self.tbs.get(clpy) + '.*' + self.tbs.get(numpy), re.S)
+        with six.assertRaisesRegex(self, AssertionError, pattern):
+            dummy_clpy_derived_unaccept_error(self)
+
+    def test_numpy_derived_unaccept_error(self):
+        @testing.helper.numpy_clpy_raises(accept_error=ValueError)
+        def dummy_numpy_derived_unaccept_error(self, xp):
+            if xp is clpy:
+                raise Exception(self.tbs.get(clpy))
+            elif xp is numpy:
+                raise ValueError(self.tbs.get(numpy))
+
+        # `Exception` is not derived from `ValueError`, therefore expect an
+        # error
+        pattern = re.compile(
+            self.tbs.get(clpy) + '.*' + self.tbs.get(numpy), re.S)
+        with six.assertRaisesRegex(self, AssertionError, pattern):
+            dummy_numpy_derived_unaccept_error(self)
 
     def test_forbidden_error(self):
-        clpy_error = Exception()
-        clpy_tb = 'xxxx'
-        numpy_error = Exception()
-        numpy_tb = 'yyyy'
-        # Use re.S mode to ignore new line characters
-        pattern = re.compile(clpy_tb + '.*' + numpy_tb, re.S)
+        @testing.helper.numpy_clpy_raises(accept_error=False)
+        def dummy_forbidden_error(self, xp):
+            raise Exception(self.tbs.get(xp))
+
+        pattern = re.compile(
+            self.tbs.get(clpy) + '.*' + self.tbs.get(numpy), re.S)
         with six.assertRaisesRegex(self, AssertionError, pattern):
-            helper._check_clpy_numpy_error(
-                self, clpy_error, clpy_tb,
-                numpy_error, numpy_tb, accept_error=False)
+            dummy_forbidden_error(self)
 
 
 class NumPyCuPyDecoratorBase(object):

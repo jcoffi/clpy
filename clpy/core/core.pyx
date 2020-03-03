@@ -1888,29 +1888,18 @@ include "reduction.pxi"
 
 cdef _id = 'out0 = in0'
 
-_elementwise_copy = create_ufunc(
+elementwise_copy = create_ufunc(
     'clpy_copy',
     ('?->?', 'b->b', 'B->B', 'h->h', 'H->H', 'i->i', 'I->I', 'l->l', 'L->L',
      'q->q', 'Q->Q', ('e->e', _id), 'f->f', 'd->d', 'F->F', 'D->D'),
-    'out0 = (out0_type)(in0)')
+    'out0 = out0_type(in0)', default_casting='unsafe')
 # complex numbers requires out0 = complex<T>(in0)
 
-
-def elementwise_copy(*args, **kwargs):
-    kwargs['casting'] = 'unsafe'
-    return _elementwise_copy(*args, **kwargs)
-
-
-_elementwise_copy_where = create_ufunc(
+elementwise_copy_where = create_ufunc(
     'clpy_copy_where',
     ('??->?', 'b?->b', 'B?->B', 'h?->h', 'H?->H', 'i?->i', 'I?->I', 'l?->l',
-     'L?->L', 'q?->q', 'Q?->Q', 'f?->f', 'd?->d', 'F?->F', 'D?->D'),
-    'if (in1) out0 = in0')
-
-
-def elementwise_copy_where(*args, **kwargs):
-    kwargs['casting'] = 'unsafe'
-    return _elementwise_copy_where(*args, **kwargs)
+     'L?->L', 'q?->q', 'Q?->Q', 'e?->e', 'f?->f', 'd?->d', 'F?->F', 'D?->D'),
+    'if (in1) out0 = in0', default_casting='unsafe')
 
 
 cdef _divmod_int = string.Template('''
@@ -3465,6 +3454,11 @@ cpdef ndarray matmul(ndarray a, ndarray b, ndarray out=None):
     cdef Py_ssize_t i, n, m, ka, kb
     cdef Py_ssize_t batchCount
 
+    orig_a_shape = a.shape
+    orig_b_shape = b.shape
+    if len(orig_a_shape) == 0 or len(orig_b_shape) == 0:
+        raise ValueError('Scalar operands are not allowed, use \'*\' instead')
+
     ret_dtype = numpy.result_type(a.dtype, b.dtype)
     dtype = numpy.find_common_type((ret_dtype, 'f'), ())
 
@@ -3550,9 +3544,16 @@ cpdef ndarray matmul(ndarray a, ndarray b, ndarray out=None):
     *la, ka, n = a.shape
     *lb, m, kb = b.shape
 
-    assert ka == kb
+    if ka != kb:
+        raise ValueError(
+            'shapes ({}) and ({}) not aligned'.format(
+                ','.join([str(_) for _ in orig_a_shape]),
+                ','.join([str(_) for _ in orig_b_shape])))
     for la_, lb_ in zip(la, lb):
-        assert la_ == lb_ or la_ == 1 or lb_ == 1
+        if not (la_ == lb_ or la_ == 1 or lb_ == 1):
+            raise ValueError(
+                'operands could not be broadcast together with '
+                'remapped shapes')
 
     batchCount = 1  # batchCount = numpy.prod(la)
     for i in la:

@@ -71,6 +71,9 @@ cdef class Indexer:
         readonly Py_ssize_t size
         readonly tuple shape
 
+
+cpdef ndarray ascontiguousarray(ndarray a, dtype=*)
+
 cdef class CArray:
     cdef:
         readonly tuple stride

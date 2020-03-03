@@ -126,6 +126,70 @@ MODULES = [
         ],
         'check_method': build.check_opencl_version,
     },
+    # {
+    #     'name': 'cudnn',
+    #     'file': [
+    #         'cupy.cuda.cudnn',
+    #         'cupy.cudnn',
+    #     ],
+    #     'include': [
+    #         'cudnn.h',
+    #     ],
+    #     'libraries': [
+    #         'cudnn',
+    #     ],
+    #     'check_method': build.check_cudnn_version,
+    # },
+    # {
+    #     'name': 'nccl',
+    #     'file': [
+    #         'cupy.cuda.nccl',
+    #     ],
+    #     'include': [
+    #         'nccl.h',
+    #     ],
+    #     'libraries': [
+    #         'nccl',
+    #     ],
+    #     'check_method': build.check_nccl_version,
+    # },
+    # {
+    #     'name': 'cusolver',
+    #     'file': [
+    #         'cupy.cuda.cusolver',
+    #     ],
+    #     'include': [
+    #         'cusolverDn.h',
+    #     ],
+    #     'libraries': [
+    #         'cusolver',
+    #     ],
+    #     'check_method': build.check_cusolver_version,
+    # },
+    # {
+    #     # The value of the key 'file' is a list that contains extension names
+    #     # or tuples of an extension name and a list of other souces files
+    #     # required to build the extension such as .cpp files and .cu files.
+    #     #
+    #     #   <extension name> | (<extension name>, a list of <other source>)
+    #     #
+    #     # The extension name is also interpreted as the name of the Cython
+    #     # source file required to build the extension with appending '.pyx'
+    #     # file extension.
+    #     'name': 'thrust',
+    #     'file': [
+    #         ('cupy.cuda.thrust', ['cupy/cuda/cupy_thrust.cu']),
+    #     ],
+    #     'include': [
+    #         'thrust/device_ptr.h',
+    #         'thrust/sequence.h',
+    #         'thrust/sort.h',
+    #     ],
+    #     'libraries': [
+    #         'cudart',
+    #     ],
+    #     'check_method': build.check_cuda_version,
+    # }
 ]
 
 
@@ -287,6 +351,9 @@ except ImportError:
 def cythonize(extensions, arg_options):
     directive_keys = ('linetrace', 'profile')
     directives = {key: arg_options[key] for key in directive_keys}
+
+    # Embed signatures for Sphinx documentation.
+    directives['embedsignature'] = True
 
     cythonize_option_keys = ('annotate',)
     cythonize_options = {key: arg_options[key]

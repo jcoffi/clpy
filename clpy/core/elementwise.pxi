@@ -567,9 +567,11 @@ cdef class ElementwiseKernel:
 
         Args:
             args: Arguments of the kernel.
-            size (int): Range size of the indices. If specified, the variable
-                ``n`` is set to this value. Otherwise, the result of
-                broadcasting is used to determine the value of ``n``.
+            size (int): Range size of the indices.  By default, the range size
+                is automatically determined from the result of broadcasting.
+                This parameter must be specified if and only if all ndarrays
+                are `raw` and the range size cannot be determined
+                automatically.
 
         Returns:
             Arrays are returned according to the ``out_params`` argument of the
@@ -761,7 +763,9 @@ class ufunc(object):
         nargs (int): Number of all arguments.
 
     """
-    def __init__(self, name, nin, nout, ops, preamble='', doc=''):
+
+    def __init__(self, name, nin, nout, ops, preamble='', doc='',
+                 default_casting=None):
         # TODO(tomoya.sakai): raw array may be possible for ufunc
         self.name = name
         self.nin = nin
@@ -770,6 +774,10 @@ class ufunc(object):
         self._ops = ops
         self._preamble = preamble
         self.__doc__ = doc
+        if default_casting is None:
+            self._default_casting = 'same_kind'
+        else:
+            self._default_casting = default_casting
         _in_params = tuple(
             ParameterInfo('T in%d' % i, True)
             for i in range(nin))
@@ -799,9 +807,7 @@ class ufunc(object):
         return types
 
     def __call__(self, *args, **kwargs):
-        """__call__(*args, **kwargs)
-
-        Applies the universal function to arguments elementwise.
+        """Applies the universal function to arguments elementwise.
 
         Args:
             args: Input arguments. Each of them can be a :class:`clpy.ndarray`
@@ -821,7 +827,7 @@ class ufunc(object):
         out = kwargs.pop('out', None)
         dtype = kwargs.pop('dtype', None)
         # Note default behavior of casting is 'same_kind' on numpy>=1.10
-        casting = kwargs.pop('casting', 'same_kind')
+        casting = kwargs.pop('casting', self._default_casting)
         if dtype is not None:
             dtype = numpy.dtype(dtype).type
         if kwargs:
@@ -879,7 +885,8 @@ class ufunc(object):
         return ret
 
 
-cpdef create_ufunc(name, ops, routine=None, preamble='', doc=''):
+cpdef create_ufunc(name, ops, routine=None, preamble='', doc='',
+                   default_casting=None):
     _ops = []
     for t in ops:
         if not isinstance(t, tuple):
@@ -897,4 +904,6 @@ cpdef create_ufunc(name, ops, routine=None, preamble='', doc=''):
         out_types = tuple([numpy.dtype(t).type for t in out_types])
         _ops.append((in_types, out_types, rt))
 
-    return ufunc(name, len(_ops[0][0]), len(_ops[0][1]), _ops, preamble, doc)
+    ret = ufunc(name, len(_ops[0][0]), len(_ops[0][1]), _ops, preamble, doc,
+                default_casting=default_casting)
+    return ret
