@@ -62,6 +62,18 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel, global_work_size,
 
     size_compute_time = 0.0
 
+    # more probes for code block 2 (packing CArray)
+    cdef double tsum_ndarray_getdim = 0.0
+    cdef double tsum_ndarray_check  = 0.0
+    cdef double tsum_ndarray_shape  = 0.0
+    cdef double tsum_ndarray_stride = 0.0
+    cdef double tsum_ndarray_offset = 0.0
+    cdef double tsum_ndarray_size   = 0.0
+
+    # start/end for code block 2
+    cdef double t_nda_start
+    cdef double t_nda_end
+
     for a in args:
         if isinstance(a, core.ndarray):
             time_start = time.perf_counter()
@@ -71,16 +83,39 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel, global_work_size,
                                                  <void*>&buffer_object)
             i+=1
 
+            t_nda_start = time.perf_counter()
             ndim = len(a.strides)
+            t_nda_end   = time.perf_counter()
+            tsum_ndarray_getdim += t_nda_end - t_nda_start
+
             for d in range(ndim):
+                t_nda_start = time.perf_counter()
                 if a.strides[d] % a.itemsize != 0:
                     raise ValueError("Stride of dim {0} = {1},"
                                      " but item size is {2}"
                                      .format(d, a.strides[d], a.itemsize))
+                t_nda_end   = time.perf_counter()
+                tsum_ndarray_check  += t_nda_end - t_nda_start
+
+                t_nda_start = time.perf_counter()
                 arrayInfo.shape_and_index[d] = a.shape[d]
+                t_nda_end   = time.perf_counter()
+                tsum_ndarray_shape  += t_nda_end - t_nda_start
+
+                t_nda_start = time.perf_counter()
                 arrayInfo.shape_and_index[d + ndim] = a.strides[d]
+                t_nda_end   = time.perf_counter()
+                tsum_ndarray_stride += t_nda_end - t_nda_start
+
+            t_nda_start = time.perf_counter()
             arrayInfo.offset = a.data.cl_mem_offset()
+            t_nda_end   = time.perf_counter()
+            tsum_ndarray_offset += t_nda_end - t_nda_start
+
+            t_nda_start = time.perf_counter()
             arrayInfo.size = a.size
+            t_nda_end   = time.perf_counter()
+            tsum_ndarray_size   += t_nda_end - t_nda_start
 
             time_end = time.perf_counter()
             ndarray_time += time_end - time_start
@@ -160,7 +195,17 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel, global_work_size,
         local_work_size=lws_ptr)
     clpy.backend.opencl.api.Finish(command_queue)
 
-    print(",".join([str(ndarray_time), str(indexer_time), str(imm_time), str(size_compute_time)]))
+    print(",".join([
+        str(ndarray_time),
+        str(indexer_time),
+        str(imm_time),
+        str(size_compute_time),
+        str(tsum_ndarray_getdim),
+        str(tsum_ndarray_check),
+        str(tsum_ndarray_shape),
+        str(tsum_ndarray_stride),
+        str(tsum_ndarray_offset),
+        str(tsum_ndarray_size)]))
 
 
 cdef class Function:
