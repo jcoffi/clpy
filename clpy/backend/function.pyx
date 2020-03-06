@@ -7,6 +7,8 @@ cimport cpython
 from libcpp cimport vector
 import cython
 
+from cpython.buffer cimport PyObject_GetBuffer, PyBuffer_Release, PyBUF_ANY_CONTIGUOUS, PyBUF_SIMPLE
+
 # from clpy.cuda cimport driver
 from clpy.core cimport core
 import clpy.backend.opencl
@@ -15,6 +17,8 @@ cimport clpy.backend.opencl.utility
 import clpy.backend.opencl.env
 cimport clpy.backend.opencl.env
 import clpy.core
+
+include "clpy/backend/opencl/types.pxi"
 
 cdef inline size_t _get_stream(strm) except *:
     return 0 if strm is None else strm.ptr
@@ -52,7 +56,15 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel, global_work_size,
     cdef _CIndexer indexer  # to keep lifetime until SetKernelArg
     cdef _CArray arrayInfo  # to keep lifetime until SetKernelArg
     cdef size_t ptr = 0
+    cdef size_t size = 0
     cdef size_t buffer_object = 0
+    cdef cl_ulong imm_ulong
+    cdef cl_uint imm_uint
+    cdef cl_long imm_long
+    cdef cl_double imm_double
+    cdef cl_char imm_char
+    cdef Py_buffer py_buffer
+
     for a in args:
         if isinstance(a, core.ndarray):
             buffer_object = a.data.buf.get()
@@ -87,22 +99,33 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel, global_work_size,
                 if isinstance(a, clpy.core.core.Size_t):
                     if clpy.backend.opencl.utility.typeof_size() \
                             == 'uint':
-                        a = numpy.uint32(a.val)
+                        imm_uint = <cl_uint>a.val
+                        ptr = <size_t>&(imm_uint)
+                        size = cython.sizeof(cl_uint)
                     elif clpy.backend.opencl.utility.typeof_size() \
                             == 'ulong':
-                        a = numpy.uint64(a.val)
+                        imm_ulong = <cl_ulong>a.val
+                        ptr = <size_t>&(imm_ulong)
+                        size = cython.sizeof(cl_ulong)
                     else:
                         raise "api_sizeof_size is illegal"
                 elif isinstance(a, int):
-                    a = numpy.int_(a)
+                    imm_long = <cl_long>a
+                    ptr = <size_t>&(imm_long)
+                    size = cython.sizeof(cl_long)
                 elif isinstance(a, float):
-                    a = numpy.float_(a)
+                    imm_double = <cl_double>a
+                    ptr = <size_t>&(imm_double)
+                    size = cython.sizeof(cl_double)
                 elif isinstance(a, bool):
-                    a = numpy.bool_(a)
-
-                if core.numpy_scalar_type_set():
-                    ptr = <size_t>a.__array_interface__["data"][0]
-                    size = a.nbytes
+                    imm_char = <cl_char>a
+                    ptr = <size_t>&(imm_char)
+                    size = cython.sizeof(cl_char)
+                elif type(a) in core.numpy_scalar_type_set():
+                    PyObject_GetBuffer(a, &py_buffer, PyBUF_SIMPLE | PyBUF_ANY_CONTIGUOUS)
+                    ptr = <size_t>py_buffer.buf
+                    size = py_buffer.len
+                    PyBuffer_Release(&py_buffer)
                 else:
                     raise TypeError('Unsupported type %s' % type(a))
             clpy.backend.opencl.api.SetKernelArg(kernel, i, size, <void*>ptr)
