@@ -7,7 +7,10 @@ cimport cpython
 from libcpp cimport vector
 import cython
 
-from cpython.buffer cimport PyObject_GetBuffer, PyBuffer_Release, PyBUF_ANY_CONTIGUOUS, PyBUF_SIMPLE
+from cpython.buffer cimport PyBUF_ANY_CONTIGUOUS
+from cpython.buffer cimport PyBUF_SIMPLE
+from cpython.buffer cimport PyBuffer_Release
+from cpython.buffer cimport PyObject_GetBuffer
 
 # from clpy.cuda cimport driver
 from clpy.core cimport core
@@ -122,7 +125,9 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel, global_work_size,
                     ptr = <size_t>&(imm_char)
                     size = cython.sizeof(cl_char)
                 elif type(a) in core.numpy_scalar_type_set():
-                    PyObject_GetBuffer(a, &py_buffer, PyBUF_SIMPLE | PyBUF_ANY_CONTIGUOUS)
+                    PyObject_GetBuffer(a,
+                                       &py_buffer,
+                                       PyBUF_SIMPLE | PyBUF_ANY_CONTIGUOUS)
                     ptr = <size_t>py_buffer.buf
                     size = py_buffer.len
                     PyBuffer_Release(&py_buffer)
