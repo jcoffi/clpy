@@ -100,7 +100,7 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel, global_work_size,
                 elif isinstance(a, bool):
                     a = numpy.bool_(a)
 
-                if core.numpy_scalar_type_set():
+                if type(a) in core.numpy_scalar_type_set():
                     ptr = <size_t>a.__array_interface__["data"][0]
                     size = a.nbytes
                 else:
