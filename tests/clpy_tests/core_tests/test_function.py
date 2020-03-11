@@ -62,3 +62,17 @@ __kernel void test_kernel(
 
         expected = a_cpu + b
         testing.assert_array_equal(x, expected)
+
+    # Note(y1r): https://github.com/fixstars/clpy/pull/281#discussion_r388705037  # NOQA
+    def test_not_supported_scalar(self):
+        code = '''
+__kernel void test_kernel(char a) {
+}
+'''
+
+        a = "2"
+
+        func = _compile_func('test_kernel', code)  # NOQA
+
+        with self.assertRaises(TypeError):
+            func.linear_launch(1, a)
