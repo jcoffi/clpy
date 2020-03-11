@@ -26,11 +26,13 @@ cpdef _get_simple_elementwise_kernel(
       ${loop_prep};
       // TODO: Add offset and/or stride
       const size_t i = get_global_id(0);
-      __attribute__((annotate("clpy_elementwise_tag"))) \
-        void __clpy_elementwise_preprocess();
-      ${operation};
-      __attribute__((annotate("clpy_elementwise_tag"))) \
-        void __clpy_elementwise_postprocess();
+      do{
+        __attribute__((annotate("clpy_elementwise_tag"))) \
+          void __clpy_elementwise_preprocess();
+        ${operation};
+        __attribute__((annotate("clpy_elementwise_tag"))) \
+          void __clpy_elementwise_postprocess();
+      }while(0);
       ${after_loop};
     }
     ''').substitute(
