@@ -118,7 +118,7 @@ cdef class clrandGenerator:
         self.counter = self._issue_by_np()
         self.inner_state_size = 1
 
-    cpdef expand(self, int size):
+    def expand(self, size):
         if self.inner_state_size >= size:
             return
         old_inner_state_size = self.inner_state_size
