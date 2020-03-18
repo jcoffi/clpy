@@ -7,6 +7,7 @@ cdef class clrandGenerator:
     cdef ndarray d
     cdef ndarray counter
     cdef int inner_state_size
+    cpdef expand(self, int size)
 
 
 cpdef clrandGenerator createGenerator()

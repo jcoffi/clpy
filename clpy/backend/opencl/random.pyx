@@ -1,5 +1,6 @@
 import clpy
 from clpy.core.core cimport ndarray
+from clpy.backend.opencl.types cimport cl_ulong
 import numpy
 
 import math
@@ -117,7 +118,7 @@ cdef class clrandGenerator:
         self.counter = self._issue_by_np()
         self.inner_state_size = 1
 
-    def expand(self, size):
+    cpdef expand(self, int size):
         if self.inner_state_size >= size:
             return
         old_inner_state_size = self.inner_state_size
@@ -140,7 +141,7 @@ cdef class clrandGenerator:
         self.d = new_d
         self.counter = new_counter
 
-        stride = new_inner_state_size // 2
+        cdef cl_ulong stride = new_inner_state_size // 2
         while stride >= 1:
             expand_function(
                 global_work_size=(new_inner_state_size // (stride*2),),
