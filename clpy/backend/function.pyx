@@ -82,10 +82,10 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel, global_work_size,
 
             ndim = a_ndarray._strides.size()
             for d in range(ndim):
-                if a_ndarray._strides[d] % a.itemsize != 0:
+                if a_ndarray._strides[d] % a_ndarray.itemsize != 0:
                     raise ValueError("Stride of dim {0} = {1},"
                                      " but item size is {2}"
-                                     .format(d, a_ndarray._strides[d], a.itemsize))
+                                     .format(d, a_ndarray._strides[d], a_ndarray.itemsize))
                 arrayInfo.shape_and_index[d] = a_ndarray._shape[d]
                 arrayInfo.shape_and_index[d + ndim] = a_ndarray._strides[d]
             arrayInfo.offset = a_ndarray.data.cl_mem_offset()
