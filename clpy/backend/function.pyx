@@ -73,6 +73,12 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel, global_work_size,
 
     for a in args:
         if isinstance(a, core.ndarray):
+            # Note(y1r):
+            # We give a type hint to Cython to optimize property access.
+            # Without a type hint, Cython deal `a` as Python Object so
+            # dynamic property access (__Pyx_PyObject_GetAttrStr) is required.
+            # By giving type hint, Cython can use static property access for
+            # `cdef` property. More detail, refer to PR#285.
             a_ndarray = <core.ndarray>a
 
             buffer_object = a_ndarray.data.buf.get()
