@@ -58,6 +58,9 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel, global_work_size,
     cdef size_t i = 0
     cdef _CIndexer indexer  # to keep lifetime until SetKernelArg
     cdef _CArray arrayInfo  # to keep lifetime until SetKernelArg
+    cdef core.ndarray a_ndarray
+    cdef size_t ndim = 0
+    cdef size_t d = 0
     cdef size_t ptr = 0
     cdef size_t size = 0
     cdef size_t buffer_object = 0
@@ -70,21 +73,31 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel, global_work_size,
 
     for a in args:
         if isinstance(a, core.ndarray):
-            buffer_object = a.data.buf.get()
+            # Note(y1r):
+            # We give a type hint to Cython to optimize property access.
+            # Without a type hint, Cython deal `a` as Python Object so
+            # dynamic property access (__Pyx_PyObject_GetAttrStr) is required.
+            # By giving type hint, Cython can use static property access for
+            # `cdef` property. More detail, refer to PR#285.
+            a_ndarray = <core.ndarray>a
+
+            buffer_object = a_ndarray.data.buf.get()
             clpy.backend.opencl.api.SetKernelArg(kernel, i, sizeof(void*),
                                                  <void*>&buffer_object)
             i+=1
 
-            ndim = len(a.strides)
+            ndim = a_ndarray._strides.size()
             for d in range(ndim):
-                if a.strides[d] % a.itemsize != 0:
+                if a_ndarray._strides[d] % a_ndarray.itemsize != 0:
                     raise ValueError("Stride of dim {0} = {1},"
                                      " but item size is {2}"
-                                     .format(d, a.strides[d], a.itemsize))
-                arrayInfo.shape_and_index[d] = a.shape[d]
-                arrayInfo.shape_and_index[d + ndim] = a.strides[d]
-            arrayInfo.offset = a.data.cl_mem_offset()
-            arrayInfo.size = a.size
+                                     .format(d, a_ndarray._strides[d],
+                                             a_ndarray.itemsize))
+                arrayInfo.shape_and_index[d] = a_ndarray._shape[d]
+                arrayInfo.shape_and_index[d + ndim] = a_ndarray._strides[d]
+            arrayInfo.offset = a_ndarray.data.cl_mem_offset()
+            arrayInfo.size = a_ndarray.size
+
             clpy.backend.opencl.api.SetKernelArg(
                 kernel, i, cython.sizeof(Py_ssize_t)*(1+1+2*ndim),
                 <void*>&arrayInfo)
