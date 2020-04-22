@@ -88,7 +88,7 @@ cdef int _launch_indexer(clpy.backend.opencl.types.cl_kernel kernel,
 
 cdef int _launch_imm(clpy.backend.opencl.types.cl_kernel kernel,
                      a, int arg_number):
-    cdef c_ulong imm_ulong
+    cdef cl_ulong imm_ulong
     cdef cl_uint imm_uint
     cdef cl_long imm_long
     cdef cl_double imm_double
