@@ -41,8 +41,102 @@ cdef struct _CArray:
 cdef struct _CArray0:
     char unused
 
-cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel, global_work_size,
-                  local_work_size, args, Py_ssize_t local_mem) except *:
+cdef int _launch_ndarray(clpy.backend.opencl.types.cl_kernel kernel,
+                         core.ndarray a, int arg_number):
+    # Note(y1r):
+    # We give a type hint to Cython to optimize property access.
+    # Without a type hint, Cython deal `a` as Python Object so
+    # dynamic property access (__Pyx_PyObject_GetAttrStr) is required.
+    # By giving type hint, Cython can use static property access for
+    # `cdef` property. More detail, refer to PR#285.
+    cdef size_t buffer_object = a.data.buf.get()
+    clpy.backend.opencl.api.SetKernelArg(kernel, arg_number, sizeof(void*),
+                                         <void*>&buffer_object)
+    arg_number+=1
+
+    cdef _CArray arrayInfo  # to keep lifetime until SetKernelArg
+
+    cdef int ndim = a._strides.size()
+    cdef int d = 0
+    for d in range(ndim):
+        if a._strides[d] % a.itemsize != 0:
+            raise ValueError("Stride of dim {0} = {1}, but item size is {2}"
+                             .format(d, a._strides[d], a.itemsize))
+        arrayInfo.shape_and_index[d] = a._shape[d]
+        arrayInfo.shape_and_index[d + ndim] = a._strides[d]
+    arrayInfo.offset = a.data.cl_mem_offset()
+    arrayInfo.size = a.size
+
+    clpy.backend.opencl.api.SetKernelArg(
+        kernel, arg_number, cython.sizeof(Py_ssize_t)*(1+1+2*ndim),
+        <void*>&arrayInfo)
+
+    return arg_number + 1
+
+cdef int _launch_indexer(clpy.backend.opencl.types.cl_kernel kernel,
+                         core.Indexer a, int arg_number):
+    cdef _CIndexer indexer  # to keep lifetime until SetKernelArg
+
+    cdef int d = 0
+    for d in range(a.ndim):
+        indexer.shape_and_index[d] = a.shape[d]
+    indexer.size = a.size
+
+    clpy.backend.opencl.api.SetKernelArg(kernel, arg_number, a.get_size(),
+                                         <void*>&indexer)
+    return arg_number + 1
+
+cdef int _launch_imm(clpy.backend.opencl.types.cl_kernel kernel,
+                     a, int arg_number):
+    cdef c_ulong imm_ulong
+    cdef cl_uint imm_uint
+    cdef cl_long imm_long
+    cdef cl_double imm_double
+    cdef cl_char imm_char
+
+    cdef size_t ptr = 0
+    cdef size_t size = 0
+
+    cdef Py_buffer py_buffer
+
+    if isinstance(a, clpy.core.core.Size_t):
+        if clpy.backend.opencl.utility.typeof_size() == 'uint':
+            imm_uint = <cl_uint>a.val
+            ptr = <size_t>&(imm_uint)
+            size = cython.sizeof(cl_uint)
+        elif clpy.backend.opencl.utility.typeof_size() == 'ulong':
+            imm_ulong = <cl_ulong>a.val
+            ptr = <size_t>&(imm_ulong)
+            size = cython.sizeof(cl_ulong)
+        else:
+            raise "api_sizeof_size is illegal"
+    elif isinstance(a, int):
+        imm_long = <cl_long>a
+        ptr = <size_t>&(imm_long)
+        size = cython.sizeof(cl_long)
+    elif isinstance(a, float):
+        imm_double = <cl_double>a
+        ptr = <size_t>&(imm_double)
+        size = cython.sizeof(cl_double)
+    elif isinstance(a, bool):
+        imm_char = <cl_char>a
+        ptr = <size_t>&(imm_char)
+        size = cython.sizeof(cl_char)
+    elif type(a) in core.numpy_scalar_type_set():
+        PyObject_GetBuffer(a, &py_buffer, PyBUF_SIMPLE | PyBUF_ANY_CONTIGUOUS)
+        ptr = <size_t>py_buffer.buf
+        size = py_buffer.len
+        PyBuffer_Release(&py_buffer)
+    else:
+        raise TypeError('Unsupported type %s' % type(a))
+
+    clpy.backend.opencl.api.SetKernelArg(kernel, arg_number, size, <void*>ptr)
+
+    return arg_number + 1
+
+cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel,
+                  list global_work_size, list local_work_size, args,
+                  Py_ssize_t local_mem) except *:
     global_dim = len(global_work_size)
     local_dim = len(local_work_size)
     if global_dim < 1 or 3 < global_dim:
@@ -56,98 +150,17 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel, global_work_size,
                          .format(global_dim, local_dim))
 
     cdef size_t i = 0
-    cdef _CIndexer indexer  # to keep lifetime until SetKernelArg
-    cdef _CArray arrayInfo  # to keep lifetime until SetKernelArg
-    cdef core.ndarray a_ndarray
-    cdef size_t ndim = 0
-    cdef size_t d = 0
-    cdef size_t ptr = 0
-    cdef size_t size = 0
-    cdef size_t buffer_object = 0
-    cdef cl_ulong imm_ulong
-    cdef cl_uint imm_uint
-    cdef cl_long imm_long
-    cdef cl_double imm_double
-    cdef cl_char imm_char
-    cdef Py_buffer py_buffer
-
     for a in args:
         if isinstance(a, core.ndarray):
-            # Note(y1r):
-            # We give a type hint to Cython to optimize property access.
-            # Without a type hint, Cython deal `a` as Python Object so
-            # dynamic property access (__Pyx_PyObject_GetAttrStr) is required.
-            # By giving type hint, Cython can use static property access for
-            # `cdef` property. More detail, refer to PR#285.
-            a_ndarray = <core.ndarray>a
-
-            buffer_object = a_ndarray.data.buf.get()
-            clpy.backend.opencl.api.SetKernelArg(kernel, i, sizeof(void*),
-                                                 <void*>&buffer_object)
-            i+=1
-
-            ndim = a_ndarray._strides.size()
-            for d in range(ndim):
-                if a_ndarray._strides[d] % a_ndarray.itemsize != 0:
-                    raise ValueError("Stride of dim {0} = {1},"
-                                     " but item size is {2}"
-                                     .format(d, a_ndarray._strides[d],
-                                             a_ndarray.itemsize))
-                arrayInfo.shape_and_index[d] = a_ndarray._shape[d]
-                arrayInfo.shape_and_index[d + ndim] = a_ndarray._strides[d]
-            arrayInfo.offset = a_ndarray.data.cl_mem_offset()
-            arrayInfo.size = a_ndarray.size
-
-            clpy.backend.opencl.api.SetKernelArg(
-                kernel, i, cython.sizeof(Py_ssize_t)*(1+1+2*ndim),
-                <void*>&arrayInfo)
+            i = _launch_ndarray(kernel, a, i)
         elif isinstance(a, clpy.core.core.LocalMem):
             clpy.backend.opencl.utility.SetKernelArgLocalMemory(kernel, i,
                                                                 local_mem)
         else:
             if isinstance(a, core.Indexer):
-                for d in range(a.ndim):
-                    indexer.shape_and_index[d] = a.shape[d]
-                ptr = <size_t>&indexer
-                indexer.size = a.size
-                size = a.get_size()
+                i = _launch_indexer(kernel, a, i)
             else:
-                if isinstance(a, clpy.core.core.Size_t):
-                    if clpy.backend.opencl.utility.typeof_size() \
-                            == 'uint':
-                        imm_uint = <cl_uint>a.val
-                        ptr = <size_t>&(imm_uint)
-                        size = cython.sizeof(cl_uint)
-                    elif clpy.backend.opencl.utility.typeof_size() \
-                            == 'ulong':
-                        imm_ulong = <cl_ulong>a.val
-                        ptr = <size_t>&(imm_ulong)
-                        size = cython.sizeof(cl_ulong)
-                    else:
-                        raise "api_sizeof_size is illegal"
-                elif isinstance(a, int):
-                    imm_long = <cl_long>a
-                    ptr = <size_t>&(imm_long)
-                    size = cython.sizeof(cl_long)
-                elif isinstance(a, float):
-                    imm_double = <cl_double>a
-                    ptr = <size_t>&(imm_double)
-                    size = cython.sizeof(cl_double)
-                elif isinstance(a, bool):
-                    imm_char = <cl_char>a
-                    ptr = <size_t>&(imm_char)
-                    size = cython.sizeof(cl_char)
-                elif type(a) in core.numpy_scalar_type_set():
-                    PyObject_GetBuffer(a,
-                                       &py_buffer,
-                                       PyBUF_SIMPLE | PyBUF_ANY_CONTIGUOUS)
-                    ptr = <size_t>py_buffer.buf
-                    size = py_buffer.len
-                    PyBuffer_Release(&py_buffer)
-                else:
-                    raise TypeError('Unsupported type %s' % type(a))
-            clpy.backend.opencl.api.SetKernelArg(kernel, i, size, <void*>ptr)
-        i+=1
+                i = _launch_imm(kernel, a, i)
 
     cdef size_t gws[3]
     for i in range(global_dim):
