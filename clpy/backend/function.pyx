@@ -42,7 +42,7 @@ cdef struct _CArray0:
     char unused
 
 cdef int _launch_ndarray(clpy.backend.opencl.types.cl_kernel kernel,
-                         core.ndarray a, int arg_number):
+                         core.ndarray a, int arg_number) except *:
     # Note(y1r):
     # We give a type hint to Cython to optimize property access.
     # Without a type hint, Cython deal `a` as Python Object so
