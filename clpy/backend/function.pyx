@@ -52,9 +52,9 @@ cdef int _launch_ndarray(clpy.backend.opencl.types.cl_kernel kernel,
     cdef size_t buffer_object = a.data.buf.get()
     clpy.backend.opencl.api.SetKernelArg(kernel, arg_number, sizeof(void*),
                                          <void*>&buffer_object)
-    arg_number+=1
+    arg_number += 1
 
-    cdef _CArray arrayInfo  # to keep lifetime until SetKernelArg
+    cdef _CArray arrayInfo
 
     cdef int ndim = a._strides.size()
     cdef int d = 0
@@ -75,7 +75,7 @@ cdef int _launch_ndarray(clpy.backend.opencl.types.cl_kernel kernel,
 
 cdef int _launch_indexer(clpy.backend.opencl.types.cl_kernel kernel,
                          core.Indexer a, int arg_number):
-    cdef _CIndexer indexer  # to keep lifetime until SetKernelArg
+    cdef _CIndexer indexer
 
     cdef int d = 0
     for d in range(a.ndim):
@@ -86,8 +86,8 @@ cdef int _launch_indexer(clpy.backend.opencl.types.cl_kernel kernel,
                                          <void*>&indexer)
     return arg_number + 1
 
-cdef int _launch_imm(clpy.backend.opencl.types.cl_kernel kernel,
-                     a, int arg_number) except *:
+cdef int _launch_immediate(clpy.backend.opencl.types.cl_kernel kernel,
+                           a, int arg_number) except *:
     cdef cl_ulong imm_ulong
     cdef cl_uint imm_uint
     cdef cl_long imm_long
@@ -156,11 +156,10 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel,
         elif isinstance(a, clpy.core.core.LocalMem):
             clpy.backend.opencl.utility.SetKernelArgLocalMemory(kernel, i,
                                                                 local_mem)
+        elif isinstance(a, core.Indexer):
+            i = _launch_indexer(kernel, a, i)
         else:
-            if isinstance(a, core.Indexer):
-                i = _launch_indexer(kernel, a, i)
-            else:
-                i = _launch_imm(kernel, a, i)
+            i = _launch_immediate(kernel, a, i)
 
     cdef size_t gws[3]
     for i in range(global_dim):
