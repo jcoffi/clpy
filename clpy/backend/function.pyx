@@ -156,6 +156,7 @@ cdef void _launch(clpy.backend.opencl.types.cl_kernel kernel,
         elif isinstance(a, clpy.core.core.LocalMem):
             clpy.backend.opencl.utility.SetKernelArgLocalMemory(kernel, i,
                                                                 local_mem)
+            i += 1
         elif isinstance(a, core.Indexer):
             i = _launch_indexer(kernel, a, i)
         else:
