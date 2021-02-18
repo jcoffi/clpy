@@ -18,7 +18,6 @@
 #include "llvm/Support/raw_os_ostream.h"
 #include "llvm/Support/raw_ostream.h"
 
-
 namespace headercvt{
 
 class MarkableLLVMOsOstream{
@@ -557,7 +556,7 @@ public:
     }
   }
   {
-    ci.getPreprocessor().addPPCallbacks(llvm::make_unique<preprocessor_defines_extractor>(
+    ci.getPreprocessor().addPPCallbacks(std::make_unique<preprocessor_defines_extractor>(
             preprocessor_defines_ostream
           ));
   }
@@ -568,7 +567,7 @@ public:
 
 struct ast_frontend_action : clang::SyntaxOnlyAction{
   virtual std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance& ci, clang::StringRef)override{
-    return llvm::make_unique<ast_consumer>(ci);
+    return std::make_unique<ast_consumer>(ci);
   }
 };
 
