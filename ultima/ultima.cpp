@@ -178,7 +178,7 @@ class preprocessor : public pp_callbacks<clang::PPCallbacks>{
       else
         fn = "clpy/" + filename.substr(cupy_dir_length, filename.size()-cupy_dir_length).str();
     else
-      fn = filename;
+      fn = filename.str();
     output(
       is_angled ? '<'             : '"',
       fn,
