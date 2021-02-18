@@ -336,6 +336,16 @@ static inline clang::Expr* get_array_size(CXXNewExpr* node){
    return e ? *e : nullptr;
 }
 
+template<typename MaterializeTemporaryExpr, typename std::enable_if<std::is_same<clang::Expr*, decltype(std::declval<MaterializeTemporaryExpr>().GetTemporaryExpr())>::value, std::nullptr_t>::type = nullptr>
+static inline clang::Expr* get_temporary_expr(MaterializeTemporaryExpr* node){
+  return node->GetTemporaryExpr();
+}
+
+template<typename MaterializeTemporaryExpr, typename std::enable_if<std::is_same<clang::Expr*, decltype(std::declval<MaterializeTemporaryExpr>().getSubExpr())>::value, std::nullptr_t>::type = nullptr>
+static inline clang::Expr* get_temporary_expr(MaterializeTemporaryExpr* node){
+  return node->getSubExpr();
+}
+
 }
 
 class decl_visitor;
@@ -1992,7 +2002,7 @@ public:
   }
 
   void VisitMaterializeTemporaryExpr(clang::MaterializeTemporaryExpr *Node){
-    PrintExpr(Node->GetTemporaryExpr());
+    PrintExpr(detail::get_temporary_expr(Node));
   }
 
   void VisitCXXFoldExpr(clang::CXXFoldExpr *E) {
