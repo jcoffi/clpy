@@ -1,7 +1,7 @@
 build: headercvt
 
 headercvt: headercvt.cpp
-	clang++ -std=c++11 -D_GLIBCXX_USE_CXX11_ABI=$(use_cxx11_abi) -Wall -Wextra -O3 -pedantic-errors $< -lclangTooling -lclangFrontendTool -lclangFrontend -lclangDriver -lclangSerialization -lclangCodeGen -lclangParse -lclangSema -lclangStaticAnalyzerFrontend -lclangStaticAnalyzerCheckers -lclangStaticAnalyzerCore -lclangAnalysis -lclangEdit -lclangAST -lclangLex -lclangBasic -lclang `llvm-config --libs --system-libs` -fno-rtti -o $@
+	clang++ -std=c++1y -D_GLIBCXX_USE_CXX11_ABI=$(use_cxx11_abi) -Wall -Wextra -O3 -pedantic-errors $< -lclangTooling -lclangFrontendTool -lclangFrontend -lclangDriver -lclangSerialization -lclangCodeGen -lclangParse -lclangSema -lclangStaticAnalyzerFrontend -lclangStaticAnalyzerCheckers -lclangStaticAnalyzerCore -lclangAnalysis -lclangEdit -lclangAST -lclangLex -lclangBasic -lclang `llvm-config --libs --system-libs` -fno-rtti -o $@
 
 
 
