@@ -178,7 +178,7 @@ class preprocessor : public pp_callbacks<clang::PPCallbacks>{
       else
         fn = "clpy/" + filename.substr(cupy_dir_length, filename.size()-cupy_dir_length).str();
     else
-      fn = filename;
+      fn = filename.str();
     output(
       is_angled ? '<'             : '"',
       fn,
@@ -334,6 +334,16 @@ template<typename CXXNewExpr, typename std::enable_if<std::is_same<clang::Option
 static inline clang::Expr* get_array_size(CXXNewExpr* node){
    auto e = node->getArraySize();
    return e ? *e : nullptr;
+}
+
+template<typename MaterializeTemporaryExpr, typename std::enable_if<std::is_same<clang::Expr*, decltype(std::declval<MaterializeTemporaryExpr>().GetTemporaryExpr())>::value, std::nullptr_t>::type = nullptr>
+static inline clang::Expr* get_temporary_expr(MaterializeTemporaryExpr* node){
+  return node->GetTemporaryExpr();
+}
+
+template<typename MaterializeTemporaryExpr, typename std::enable_if<std::is_same<clang::Expr*, decltype(std::declval<MaterializeTemporaryExpr>().getSubExpr())>::value, std::nullptr_t>::type = nullptr>
+static inline clang::Expr* get_temporary_expr(MaterializeTemporaryExpr* node){
+  return node->getSubExpr();
 }
 
 }
@@ -1992,7 +2002,7 @@ public:
   }
 
   void VisitMaterializeTemporaryExpr(clang::MaterializeTemporaryExpr *Node){
-    PrintExpr(Node->GetTemporaryExpr());
+    PrintExpr(detail::get_temporary_expr(Node));
   }
 
   void VisitCXXFoldExpr(clang::CXXFoldExpr *E) {
@@ -3533,7 +3543,7 @@ class ast_consumer : public clang::ASTConsumer{
   }
  public:
   explicit ast_consumer(clang::CompilerInstance& ci) : visit{new decl_visitor{llvm::outs(), ppolicy(ci.getASTContext().getPrintingPolicy())}}{
-    ci.getPreprocessor().addPPCallbacks(llvm::make_unique<preprocessor>());
+    ci.getPreprocessor().addPPCallbacks(std::make_unique<preprocessor>());
   }
   virtual void HandleTranslationUnit(clang::ASTContext& context)override{
     visit->Visit(context.getTranslationUnitDecl());
@@ -3542,7 +3552,7 @@ class ast_consumer : public clang::ASTConsumer{
 
 struct ast_frontend_action : clang::SyntaxOnlyAction{
   virtual std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance& ci, clang::StringRef)override{
-    return llvm::make_unique<ast_consumer>(ci);
+    return std::make_unique<ast_consumer>(ci);
   }
 };
 
